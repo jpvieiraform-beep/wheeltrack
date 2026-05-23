@@ -1,0 +1,139 @@
+import React, { useState, useEffect } from 'react';
+import { supabase } from './supabaseClient';
+import VirtualDisplay from './VirtualDisplay';
+
+export default function App() {
+  const [session, setSession] = useState<any>(null);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [isRegistering, setIsRegistering] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [message, setMessage] = useState('');
+
+  useEffect(() => {
+    // Verificar se o utilizador já está logado ao abrir a app
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      setLoading(false);
+    });
+
+    // Escutar alterações na sessão (login, logout, registo)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  const handleAuth = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setMessage('');
+    
+    if (isRegistering) {
+      // REGISTO DE NOVO UTILIZADOR
+      const { error } = await supabase.auth.signUp({ email, password });
+      if (error) setMessage(`Erro: ${error.message}`);
+      else setMessage('Registo feito com sucesso! Confirma o teu email.');
+    } else {
+      // LOGIN DE UTILIZADOR EXISTENTE
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) setMessage(`Erro: ${error.message}`);
+    }
+  };
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-950 text-white flex items-center justify-center font-sans">
+        A inicializar segurança...
+      </div>
+    );
+  }
+
+  // Se o utilizador NÃO estiver logado, mostra o portal de entrada
+  if (!session) {
+    return (
+      <div className="min-h-screen bg-gray-950 text-white flex items-center justify-center p-4 font-sans">
+        <div className="bg-gray-900 border border-gray-800 p-8 rounded-2xl max-w-md w-full shadow-2xl">
+          <div className="text-center mb-6">
+            <h1 className="text-3xl font-extrabold text-yellow-500 tracking-tight">Mavicut WheelTrack</h1>
+            <p className="text-sm text-gray-400 mt-2">Gere a tua coleção e os teus expositores físicos</p>
+          </div>
+
+          <form onSubmit={handleAuth} className="space-y-4">
+            <div>
+              <label className="block text-xs font-semibold text-gray-400 uppercase mb-2">Email</label>
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="o-teu-email@gmail.com"
+                className="w-full bg-gray-950 border border-gray-700 rounded-lg p-3 text-white focus:outline-none focus:border-yellow-500 transition"
+                required
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-gray-400 uppercase mb-2">Palavra-passe</label>
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="******"
+                className="w-full bg-gray-950 border border-gray-700 rounded-lg p-3 text-white focus:outline-none focus:border-yellow-500 transition"
+                required
+              />
+            </div>
+
+            {message && (
+              <p className="text-xs text-center font-medium p-2 rounded bg-gray-950 text-yellow-500 border border-gray-800">
+                {message}
+              </p>
+            )}
+
+            <button
+              type="submit"
+              className="w-full bg-yellow-500 hover:bg-yellow-600 text-gray-950 font-bold p-3 rounded-lg shadow-lg transition"
+            >
+              {isRegistering ? 'Criar Conta' : 'Entrar na Garagem'}
+            </button>
+          </form>
+
+          <div className="text-center mt-6 border-t border-gray-800 pt-4">
+            <button
+              onClick={() => {
+                setIsRegistering(!isRegistering);
+                setMessage('');
+              }}
+              className="text-xs text-yellow-500 hover:underline"
+            >
+              {isRegistering ? 'Já tens conta? Entra aqui' : 'Não tens conta? Regista-te agora'}
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Se o utilizador ESTIVER logado, mostra a aplicação e passa o botão de logout
+  return (
+    <div>
+      <div className="bg-gray-900 border-b border-gray-800 px-6 py-3 flex justify-between items-center text-white">
+        <span className="text-yellow-500 font-bold tracking-wider">WHEELTRACK PRO</span>
+        <div className="flex items-center gap-4">
+          <span className="text-xs text-gray-400 font-mono hidden sm:inline">{session.user.email}</span>
+          <button
+            onClick={handleLogout}
+            className="text-xs bg-red-950 hover:bg-red-900 border border-red-800 text-red-200 px-3 py-1.5 rounded transition"
+          >
+            Sair
+          </button>
+        </div>
+      </div>
+      <VirtualDisplay />
+    </div>
+  );
+}
