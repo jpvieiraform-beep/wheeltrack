@@ -41,10 +41,6 @@ export default function App() {
     }
   };
 
-  const handleLogout = async () => {
-    await supabase.auth.signOut();
-  };
-
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-950 text-white flex items-center justify-center font-sans">
@@ -118,22 +114,18 @@ export default function App() {
     );
   }
 
-  // Se o utilizador ESTIVER logado, mostra a aplicação e passa o botão de logout
+  // Se o utilizador ESTIVER logado, renderiza apenas o controlador principal
   return (
-    <div>
-      <div className="bg-gray-900 border-b border-gray-800 px-6 py-3 flex justify-between items-center text-white">
-        <span className="text-yellow-500 font-bold tracking-wider">WHEELTRACK PRO</span>
-        <div className="flex items-center gap-4">
-          <span className="text-xs text-gray-400 font-mono hidden sm:inline">{session.user.email}</span>
-          <button
-            onClick={handleLogout}
-            className="text-xs bg-red-950 hover:bg-red-900 border border-red-800 text-red-200 px-3 py-1.5 rounded transition"
-          >
-            Sair
-          </button>
-        </div>
-      </div>
+    <div className="relative min-h-screen bg-gray-950">
+      {/* O VirtualDisplay agora gere o seu próprio cabeçalho e botão de Sair */}
       <VirtualDisplay />
+
+      {/* Etiqueta discreta com o Email no canto inferior direito */}
+      <div className="fixed bottom-4 right-4 bg-gray-900/80 backdrop-blur-sm border border-gray-800 px-3 py-1.5 rounded-full z-50 pointer-events-none shadow-lg">
+        <span className="text-[10px] text-gray-400 font-mono flex items-center gap-2">
+          👤 {session.user.email}
+        </span>
+      </div>
     </div>
   );
 }
