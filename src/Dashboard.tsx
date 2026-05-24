@@ -6,6 +6,7 @@ const ICON_STH = 'https://collecthw.com/images/sth.png';
 interface DashboardProps {
   allMiniatures: any[];
   displaysList: any[];
+  globalMarket: any[]; // Nova propriedade para os carros da rede
   subscriptionStatus: 'free' | 'premium';
   onSelectDisplay: (display: any) => void;
   onDeleteDisplay: (e: React.MouseEvent, displayId: string, displayName: string) => void;
@@ -14,9 +15,12 @@ interface DashboardProps {
 }
 
 export default function Dashboard({
-  allMiniatures, displaysList, subscriptionStatus, onSelectDisplay, onDeleteDisplay, onCreateNewClick, onLogout
+  allMiniatures, displaysList, globalMarket, subscriptionStatus, onSelectDisplay, onDeleteDisplay, onCreateNewClick, onLogout
 }: DashboardProps) {
-  const [activeTab, setActiveTab] = useState<'expositores' | 'trocas'>('expositores');
+  // Agora temos 3 abas
+  const [activeTab, setActiveTab] = useState<'expositores' | 'mercado' | 'trocas'>('expositores');
+  // Estado para controlar se a paywall está visível a partir do mercado
+  const [showPaywall, setShowPaywall] = useState(false);
 
   const extractLocation = (fullName: string) => {
     if (fullName && fullName.startsWith('[')) {
@@ -41,14 +45,20 @@ export default function Dashboard({
     return acc;
   }, {});
 
+  const handleProporTroca = () => {
+    if (subscriptionStatus === 'free') {
+      setShowPaywall(true);
+    } else {
+      alert("A abrir chat com o colecionador...");
+    }
+  };
+
   return (
     <div className="max-w-5xl mx-auto p-6 space-y-6">
       
       {/* CABEÇALHO DINÂMICO */}
       <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4 border-b border-gray-800 pb-6">
         <div className="space-y-4">
-          
-          {/* TÍTULO MAVICUT CONDICIONAL */}
           <h1 className="text-2xl font-black tracking-tighter uppercase text-white">
             WHEELTRACK MAVICUT{' '}
             {subscriptionStatus === 'premium' ? (
@@ -58,18 +68,19 @@ export default function Dashboard({
             )}
           </h1>
           
-          <div className="flex bg-gray-900 p-1 rounded-xl border border-gray-800 text-xs w-fit shadow-inner">
-            <button onClick={() => setActiveTab('expositores')} className={`px-5 py-2 rounded-lg font-extrabold transition-all duration-150 ${activeTab === 'expositores' ? 'bg-yellow-500 text-gray-950 shadow-md' : 'text-gray-400 hover:text-white'}`}>
+          <div className="flex flex-wrap bg-gray-900 p-1 rounded-xl border border-gray-800 text-xs w-fit shadow-inner gap-1">
+            <button onClick={() => setActiveTab('expositores')} className={`px-4 py-2 rounded-lg font-extrabold transition-all duration-150 ${activeTab === 'expositores' ? 'bg-yellow-500 text-gray-950 shadow-md' : 'text-gray-400 hover:text-white'}`}>
               🔲 Meus Expositores
             </button>
             
-            {/* A ABA APARECE SEMPRE, MAS COM UM AVISO 'PRO' SE FOR FREE */}
-            <button onClick={() => setActiveTab('trocas')} className={`px-5 py-2 rounded-lg font-extrabold transition-all duration-150 flex items-center gap-2 ${activeTab === 'trocas' ? 'bg-yellow-500 text-gray-950 shadow-md' : 'text-gray-400 hover:text-white'}`}>
-              🔄 Central de Matches
+            <button onClick={() => setActiveTab('mercado')} className={`px-4 py-2 rounded-lg font-extrabold transition-all duration-150 ${activeTab === 'mercado' ? 'bg-yellow-500 text-gray-950 shadow-md' : 'text-gray-400 hover:text-white'}`}>
+              🌐 Mercado Global
+            </button>
+            
+            <button onClick={() => setActiveTab('trocas')} className={`px-4 py-2 rounded-lg font-extrabold transition-all duration-150 flex items-center gap-2 ${activeTab === 'trocas' ? 'bg-yellow-500 text-gray-950 shadow-md' : 'text-gray-400 hover:text-white'}`}>
+              🔄 Central Matches
               {subscriptionStatus === 'free' && (
-                <span className="text-[9px] bg-red-600 text-white px-1.5 py-0.5 rounded uppercase font-black animate-pulse shadow-sm">
-                  Pro
-                </span>
+                <span className="text-[9px] bg-red-600 text-white px-1.5 py-0.5 rounded uppercase font-black animate-pulse shadow-sm">Pro</span>
               )}
             </button>
           </div>
@@ -88,6 +99,7 @@ export default function Dashboard({
       {/* ABA: EXPOSITORES */}
       {activeTab === 'expositores' && (
         <>
+          {/* Estatísticas e lista de expositores mantêm-se iguais */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             <div className="bg-gray-900 border border-gray-800 p-4 rounded-xl text-center shadow">
               <span className="text-xs text-gray-400 block mb-1">Total Modelos</span>
@@ -125,63 +137,77 @@ export default function Dashboard({
         </>
       )}
 
-      {/* ABA: TROCAS (COM PAYWALL) */}
-      {activeTab === 'trocas' && (
-        <div className="pt-2 animate-fade-in">
-          {subscriptionStatus === 'premium' ? (
-            <div className="bg-gray-900 border border-gray-800 rounded-2xl p-6 space-y-4 shadow-xl">
-              <div className="border-b border-gray-800 pb-3">
-                <h3 className="text-lg font-black text-yellow-500">Radar de Conexões Ativo</h3>
-                <p className="text-xs text-gray-400 font-light mt-0.5">O sistema está a cruzar os teus itens repetidos com outros colecionadores.</p>
-              </div>
-              <div className="bg-gray-950 p-8 rounded-xl border border-gray-850 text-center space-y-2">
-                <span className="text-4xl block mb-4 animate-bounce">📡</span>
-                <h4 className="text-sm font-bold text-white">À procura de conexões automáticas...</h4>
-                <p className="text-xs text-gray-500 max-w-xs mx-auto">Tens atualmente {allMiniatures.filter(m => m.is_for_trade).length} miniaturas expostas para troca. Assim que houver um match na rede, os dados de contacto abrem aqui.</p>
-              </div>
+      {/* ABA: MERCADO GLOBAL */}
+      {activeTab === 'mercado' && (
+        <div className="pt-2 animate-fade-in space-y-4">
+          <div className="border-b border-gray-800 pb-3 flex justify-between items-end">
+            <div>
+              <h3 className="text-lg font-black text-white">Classificados da Comunidade</h3>
+              <p className="text-xs text-gray-400 font-light mt-0.5">Miniaturas sinalizadas para troca por outros colecionadores.</p>
+            </div>
+            <span className="text-xs bg-gray-800 text-gray-300 px-2 py-1 rounded font-bold">{globalMarket.length} disponíveis</span>
+          </div>
+
+          {globalMarket.length === 0 ? (
+            <div className="bg-gray-950 p-8 rounded-xl border border-gray-850 text-center text-gray-500 text-sm">
+              Nenhuma miniatura disponível no mercado neste momento.
             </div>
           ) : (
-            /* PAYWALL PARA UTILIZADORES FREE */
-            <div className="relative w-full border border-gray-800 rounded-2xl overflow-hidden bg-gray-950 min-h-[400px] flex items-center justify-center shadow-2xl">
-              
-              {/* Fundo Desfocado (Efeito Psicológico) */}
-              <div className="absolute inset-0 p-6 space-y-3 opacity-40 blur-sm pointer-events-none select-none">
-                {[1, 2, 3].map((i) => (
-                  <div key={i} className="w-full h-20 bg-gray-900 rounded-xl border border-gray-800 flex items-center px-4 justify-between">
-                     <div className="flex gap-4 items-center">
-                        <div className="w-12 h-12 bg-gray-800 rounded-full"></div>
-                        <div className="space-y-2">
-                          <div className="w-32 h-3 bg-gray-700 rounded"></div>
-                          <div className="w-20 h-2 bg-gray-800 rounded"></div>
-                        </div>
-                     </div>
-                     <div className="w-24 h-8 bg-yellow-500/20 rounded-lg"></div>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+              {globalMarket.map((car, idx) => (
+                <div key={idx} className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden flex flex-col hover:border-gray-600 transition shadow">
+                  <div className="h-32 bg-gray-950 flex items-center justify-center overflow-hidden relative">
+                    {car.photo_url ? (
+                      <img src={car.photo_url} alt={car.name} className="w-full h-full object-cover opacity-80 hover:opacity-100 transition" />
+                    ) : (
+                      <span className="text-3xl">🚗</span>
+                    )}
+                    <div className="absolute top-2 right-2 bg-black/60 backdrop-blur-md px-2 py-1 rounded text-[9px] text-white font-bold border border-white/10 uppercase">
+                      {car.rarity_type}
+                    </div>
                   </div>
-                ))}
-              </div>
-
-              {/* Caixa de Conversão */}
-              <div className="relative z-10 bg-gray-900/90 backdrop-blur-xl border border-gray-700 p-8 rounded-2xl max-w-md text-center shadow-[0_0_40px_rgba(0,0,0,0.8)]">
-                <div className="w-16 h-16 bg-yellow-500/10 border border-yellow-500/30 rounded-full flex items-center justify-center text-3xl mx-auto shadow-[0_0_15px_rgba(234,179,8,0.15)] mb-4">🔒</div>
-                <h3 className="text-2xl font-black text-white tracking-tight">Central de Matches Bloqueada</h3>
-                <p className="text-sm text-gray-400 mt-3 mb-6 leading-relaxed">
-                  Existem colecionadores na rede à procura das tuas miniaturas. Desbloqueia o WheelTrack PRO para veres quem tem o que procuras e iniciares trocas diretas.
-                </p>
-                
-                <button 
-                  onClick={() => alert("A redirecionar para pagamento Stripe...")}
-                  className="w-full py-3.5 bg-gradient-to-r from-yellow-500 to-amber-600 hover:from-yellow-400 hover:to-amber-500 text-gray-950 font-black text-sm rounded-xl uppercase tracking-wider shadow-lg transition transform hover:scale-[1.02]"
-                >
-                  Desbloquear por 2,99€ / Mês
-                </button>
-                
-                <div className="mt-4 flex flex-col gap-2 text-[10px] text-gray-500 font-medium">
-                  <span className="flex items-center justify-center gap-1">✔️ Cancela a qualquer momento</span>
-                  <span className="flex items-center justify-center gap-1">✔️ Match instantâneo por Código Toy#</span>
+                  <div className="p-3 flex flex-col flex-1">
+                    <h4 className="text-sm font-bold text-white truncate" title={car.name}>{car.name}</h4>
+                    <span className="text-[10px] text-gray-400 mt-1">Série: {car.series || 'N/A'}</span>
+                    <span className="text-[10px] text-gray-500 mt-1 flex items-center gap-1">👤 Colecionador Anónimo</span>
+                    
+                    <button 
+                      onClick={handleProporTroca}
+                      className="mt-auto pt-3 w-full border-t border-gray-800 text-xs font-bold text-blue-400 hover:text-blue-300 transition uppercase tracking-wide flex items-center justify-center gap-2"
+                    >
+                      💬 Propor Troca
+                    </button>
+                  </div>
                 </div>
-              </div>
+              ))}
             </div>
           )}
+        </div>
+      )}
+
+      {/* PAYWALL / OVERLAY (Aparece tanto na aba Matches como se clicar "Propor Troca" no Mercado) */}
+      {(activeTab === 'trocas' || showPaywall) && subscriptionStatus === 'free' && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in">
+          <div className="relative w-full max-w-md bg-gray-900 border border-gray-700 p-8 rounded-3xl text-center shadow-[0_0_40px_rgba(0,0,0,0.8)]">
+            <button onClick={() => { setActiveTab('expositores'); setShowPaywall(false); }} className="absolute top-4 right-4 text-gray-500 hover:text-white">✕</button>
+            <div className="w-16 h-16 bg-yellow-500/10 border border-yellow-500/30 rounded-full flex items-center justify-center text-3xl mx-auto shadow-[0_0_15px_rgba(234,179,8,0.15)] mb-4">🔒</div>
+            <h3 className="text-2xl font-black text-white tracking-tight">Recurso Premium</h3>
+            <p className="text-sm text-gray-400 mt-3 mb-6 leading-relaxed">
+              Para veres quem tem o que procuras, iniciares conversas e propões trocas no Mercado Global, desbloqueia o WheelTrack PRO.
+            </p>
+            
+            <button 
+              onClick={() => alert("A redirecionar para pagamento Stripe...")}
+              className="w-full py-3.5 bg-gradient-to-r from-yellow-500 to-amber-600 hover:from-yellow-400 hover:to-amber-500 text-gray-950 font-black text-sm rounded-xl uppercase tracking-wider shadow-lg transition transform hover:scale-[1.02]"
+            >
+              Desbloquear por 2,99€ / Mês
+            </button>
+            
+            <div className="mt-4 flex flex-col gap-2 text-[10px] text-gray-500 font-medium">
+              <span className="flex items-center justify-center gap-1">✔️ Cancela a qualquer momento</span>
+              <span className="flex items-center justify-center gap-1">✔️ Match instantâneo por Código Toy#</span>
+            </div>
+          </div>
         </div>
       )}
     </div>
