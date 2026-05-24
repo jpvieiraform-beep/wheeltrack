@@ -19,6 +19,7 @@ export default function MiniatureFormModal({ isOpen, onClose, onSaveComplete, di
   const [carSeries, setCarSeries] = useState('');
   const [carColor, setCarColor] = useState('');
   const [carCode, setCarCode] = useState('');
+  const [carFactoryCode, setCarFactoryCode] = useState(''); // Novo estado para Código de Fabrico
   const [carNotes, setCarNotes] = useState('');
   const [carPhotoUrl, setCarPhotoUrl] = useState<string | null>(null);
   const [carIsForTrade, setCarIsForTrade] = useState(false);
@@ -33,6 +34,7 @@ export default function MiniatureFormModal({ isOpen, onClose, onSaveComplete, di
       setCarSeries(existingCar.series || '');
       setCarColor(existingCar.color || '');
       setCarCode(existingCar.code || '');
+      setCarFactoryCode(existingCar.factory_code || ''); // Carrega o código de fabrico
       setCarNotes(existingCar.notes || '');
       setCarPhotoUrl(existingCar.photo_url || null);
       setCarIsForTrade(existingCar.is_for_trade || false);
@@ -49,6 +51,7 @@ export default function MiniatureFormModal({ isOpen, onClose, onSaveComplete, di
       setCarSeries('');
       setCarColor('');
       setCarCode('');
+      setCarFactoryCode('');
       setCarNotes('');
       setCarPhotoUrl(null);
       setCarIsForTrade(false);
@@ -115,6 +118,7 @@ export default function MiniatureFormModal({ isOpen, onClose, onSaveComplete, di
       series: carSeries.trim() || null,
       color: carColor.trim() || null,
       code: carCode.trim() || null,
+      factory_code: carFactoryCode.trim() || null, // Guarda o código de fabrico
       notes: carNotes.trim() || null,
       photo_url: carPhotoUrl,
       is_for_trade: carIsForTrade
@@ -142,9 +146,12 @@ export default function MiniatureFormModal({ isOpen, onClose, onSaveComplete, di
 
   return (
     <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50">
-      <div className="bg-gray-900 border border-gray-800 p-6 rounded-2xl max-w-md w-full space-y-4 max-h-[90vh] overflow-y-auto">
+      <div className="bg-gray-900 border border-gray-800 p-6 rounded-2xl max-w-md w-full space-y-4 max-h-[90vh] overflow-y-auto shadow-2xl">
         <h2 className="text-lg font-black text-white border-b border-gray-800 pb-2">Ficha Técnica da Miniatura</h2>
+        
         <form onSubmit={handleSave} className="space-y-4">
+          
+          {/* Zona de Imagens */}
           <div className="bg-gray-950 p-3 rounded-xl border border-gray-850 space-y-2">
             <div className="flex items-center justify-between text-xs">
               <label className="text-gray-400 font-medium">Imagens do Modelo:</label>
@@ -155,14 +162,18 @@ export default function MiniatureFormModal({ isOpen, onClose, onSaveComplete, di
               <input type="file" accept="image/*" onChange={(e) => handlePhotoUpload(e, true)} className="text-xs text-gray-500" />
             </div>
           </div>
+
+          {/* Nome */}
           <div>
             <label className="block text-xs font-bold text-gray-400 uppercase mb-1">Nome Oficial *</label>
-            <input type="text" value={carName} onChange={(e) => setCarName(e.target.value)} className="w-full bg-gray-950 border border-gray-750 rounded-xl p-2.5 text-sm text-white" required />
+            <input type="text" value={carName} onChange={(e) => setCarName(e.target.value)} placeholder="Ex: '67 Camaro" className="w-full bg-gray-950 border border-gray-750 rounded-xl p-2.5 text-sm text-white focus:outline-none focus:border-yellow-500 transition" required />
           </div>
+
+          {/* Linha: Raridade / Código Toy# */}
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-xs text-gray-400 uppercase mb-1">Raridade</label>
-              <select value={carRarity} onChange={(e) => setCarRarity(e.target.value)} className="w-full bg-gray-950 border border-gray-750 rounded-xl p-2 text-sm text-white">
+              <select value={carRarity} onChange={(e) => setCarRarity(e.target.value)} className="w-full bg-gray-950 border border-gray-750 rounded-xl p-2.5 text-sm text-white focus:outline-none focus:border-yellow-500 transition">
                 <option value="Regular">Regular (Mainline)</option>
                 <option value="Premium">Premium</option>
                 <option value="Treasure Hunt">Treasure Hunt (TH)</option>
@@ -171,29 +182,58 @@ export default function MiniatureFormModal({ isOpen, onClose, onSaveComplete, di
             </div>
             <div>
               <label className="block text-xs text-gray-400 uppercase mb-1">Código Toy#</label>
-              <input type="text" value={carCode} onChange={(e) => setCarCode(e.target.value)} placeholder="Ex: GHD81" className="w-full bg-gray-950 border border-gray-750 rounded-xl p-2 text-sm text-white" />
+              <input type="text" value={carCode} onChange={(e) => setCarCode(e.target.value)} placeholder="Ex: GHD81" className="w-full bg-gray-950 border border-gray-750 rounded-xl p-2.5 text-sm text-white focus:outline-none focus:border-yellow-500 transition" />
             </div>
           </div>
+
+          {/* Linha: Série / Ano */}
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-xs text-gray-400 uppercase mb-1">Série</label>
-              <input type="text" value={carSeries} onChange={(e) => setCarSeries(e.target.value)} className="w-full bg-gray-950 border border-gray-750 rounded-xl p-2 text-sm text-white" />
+              <input type="text" value={carSeries} onChange={(e) => setCarSeries(e.target.value)} placeholder="Ex: HW Flames" className="w-full bg-gray-950 border border-gray-750 rounded-xl p-2.5 text-sm text-white focus:outline-none focus:border-yellow-500 transition" />
             </div>
             <div>
               <label className="block text-xs text-gray-400 uppercase mb-1">Ano</label>
-              <input type="number" value={carYear} onChange={(e) => setCarYear(e.target.value)} className="w-full bg-gray-950 border border-gray-750 rounded-xl p-2 text-sm text-white" required />
+              <input type="number" value={carYear} onChange={(e) => setCarYear(e.target.value)} className="w-full bg-gray-950 border border-gray-750 rounded-xl p-2.5 text-sm text-white focus:outline-none focus:border-yellow-500 transition" required />
             </div>
           </div>
-          <div className="bg-blue-950/30 border border-blue-900/50 p-3 rounded-xl flex items-center justify-between">
+
+          {/* Linha: Cor / Código de Fabrico */}
+          <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-bold text-blue-400 uppercase">Disponível para Troca?</label>
+              <label className="block text-xs text-gray-400 uppercase mb-1">Cor / Pintura</label>
+              <input type="text" value={carColor} onChange={(e) => setCarColor(e.target.value)} placeholder="Ex: Spectraflame Red" className="w-full bg-gray-950 border border-gray-750 rounded-xl p-2.5 text-sm text-white focus:outline-none focus:border-yellow-500 transition" />
+            </div>
+            <div>
+              <label className="block text-xs text-gray-400 uppercase mb-1">Cód. Fabrico</label>
+              <input type="text" value={carFactoryCode} onChange={(e) => setCarFactoryCode(e.target.value)} placeholder="Ex: N23 (Base Code)" className="w-full bg-gray-950 border border-gray-750 rounded-xl p-2.5 text-sm text-white focus:outline-none focus:border-yellow-500 transition" />
+            </div>
+          </div>
+
+          {/* Notas */}
+          <div>
+            <label className="block text-xs text-gray-400 uppercase mb-1">Notas / Observações</label>
+            <textarea 
+              value={carNotes} 
+              onChange={(e) => setCarNotes(e.target.value)} 
+              placeholder="Detalhes sobre o estado do blister, variações de roda..." 
+              className="w-full bg-gray-950 border border-gray-750 rounded-xl p-2.5 text-sm text-white h-20 resize-none focus:outline-none focus:border-yellow-500 transition"
+            ></textarea>
+          </div>
+
+          {/* Toggle de Troca */}
+          <div className="bg-blue-950/30 border border-blue-900/50 p-3 rounded-xl flex items-center justify-between mt-2">
+            <div>
+              <label className="block text-xs font-bold text-blue-400 uppercase cursor-pointer" htmlFor="tradeToggle">Disponível para Troca?</label>
               <span className="text-[10px] text-gray-400 block font-light">Sinaliza este item como repetido para a rede.</span>
             </div>
-            <input type="checkbox" checked={carIsForTrade} onChange={(e) => setCarIsForTrade(e.target.checked)} className="w-5 h-5 rounded bg-gray-950 text-blue-600 focus:ring-0 cursor-pointer" />
+            <input id="tradeToggle" type="checkbox" checked={carIsForTrade} onChange={(e) => setCarIsForTrade(e.target.checked)} className="w-5 h-5 rounded bg-gray-950 text-blue-600 focus:ring-0 cursor-pointer" />
           </div>
-          <div className="flex justify-end gap-3 pt-2 border-t border-gray-800">
-            <button type="button" onClick={onClose} className="text-xs text-gray-400">Cancelar</button>
-            <button type="submit" className="px-5 py-2 bg-yellow-500 text-gray-950 font-black text-xs rounded-xl uppercase">Salvar Ficha</button>
+
+          {/* Botões Base */}
+          <div className="flex justify-end gap-3 pt-4 border-t border-gray-800">
+            <button type="button" onClick={onClose} className="px-4 py-2 text-xs font-bold text-gray-400 hover:text-white transition">Cancelar</button>
+            <button type="submit" className="px-6 py-2.5 bg-yellow-500 hover:bg-yellow-400 text-gray-950 font-black text-xs rounded-xl uppercase tracking-wider shadow-lg transition">Salvar Ficha</button>
           </div>
         </form>
       </div>
