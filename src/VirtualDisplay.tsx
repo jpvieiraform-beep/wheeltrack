@@ -222,6 +222,7 @@ export default function VirtualDisplay() {
         <Dashboard 
           allMiniatures={allMiniatures}
           displaysList={displaysList}
+          globalMarket={[]}
           subscriptionStatus={subscriptionStatus}
           onSelectDisplay={loadMiniatures}
           onDeleteDisplay={handleDeleteDisplay}
