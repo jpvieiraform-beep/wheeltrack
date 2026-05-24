@@ -335,7 +335,7 @@ export default function Dashboard({
                       <div key={msg.id} className={`max-w-[70%] p-3 rounded-2xl text-sm text-left ${isMe ? 'bg-blue-600 text-white self-end rounded-br-none' : 'bg-gray-800 text-gray-200 self-start rounded-bl-none'}`}>
                         <p>{msg.content}</p>
                         <span className="text-[8px] opacity-60 block text-right mt-1">
-                          {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-2-digit', minute: '2-2-digit' })}
+                          {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-2-digit' })}
                         </span>
                       </div>
                     );
