@@ -63,7 +63,6 @@ export default function Dashboard({
   }, [activeChatUser, currentUserId]);
 
   const fetchMyChats = async () => {
-    // Procura mensagens onde o utilizador está envolvido
     const { data } = await supabase
       .from('messages')
       .select('sender_id, receiver_id, content, created_at')
@@ -71,7 +70,6 @@ export default function Dashboard({
       .order('created_at', { ascending: false });
 
     if (data) {
-      // Agrupa mensagens por utilizador para fazer a lista de contactos
       const contactsMap: { [key: string]: any } = {};
       data.forEach(msg => {
         const otherId = msg.sender_id === currentUserId ? msg.receiver_id : msg.sender_id;
@@ -289,8 +287,8 @@ export default function Dashboard({
         </div>
       )}
 
-      {/* ABA: CENTRAL DE MATCHES / CHAT REAL */}
-      {activeTab === 'trocas' && subscriptionStatus === 'premium' && (
+      {/* ABA: CENTRAL DE MATCHES / CHAT (AGORA ACESSÍVEL A AMBOS) */}
+      {activeTab === 'trocas' && (
         <div className="bg-gray-900 border border-gray-800 rounded-2xl overflow-hidden h-[500px] flex shadow-xl animate-fade-in">
           {/* Barra Lateral: Lista de Contactos */}
           <div className="w-1/3 border-r border-gray-800 bg-gray-950 flex flex-col">
@@ -364,7 +362,7 @@ export default function Dashboard({
         </div>
       )}
 
-      {/* MODAL: MANDAR MENSAGEM INICIAL (SÓ PREMIUM) */}
+      {/* MODAL: MANDAR MENSAGEM INICIAL (SÓ PREMIUM CONSEGUE ABRIR) */}
       {selectedCarForPropose && (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-gray-900 border border-gray-800 p-6 rounded-2xl max-w-md w-full space-y-4 shadow-2xl text-left">
@@ -395,15 +393,15 @@ export default function Dashboard({
         </div>
       )}
 
-      {/* PAYWALL GENERICA (FREE) */}
-      {(activeTab === 'trocas' || showPaywall) && subscriptionStatus === 'free' && (
+      {/* PAYWALL ATIVA (SÓ ABRE SE SHOWPAYWALL FOR TRUE) */}
+      {showPaywall && subscriptionStatus === 'free' && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in">
           <div className="relative w-full max-w-md bg-gray-900 border border-gray-700 p-8 rounded-3xl text-center shadow-[0_0_40px_rgba(0,0,0,0.8)]">
-            <button onClick={() => { setActiveTab('expositores'); setShowPaywall(false); }} className="absolute top-4 right-4 text-gray-500 hover:text-white">✕</button>
+            <button onClick={() => setShowPaywall(false)} className="absolute top-4 right-4 text-gray-500 hover:text-white">✕</button>
             <div className="w-16 h-16 bg-yellow-500/10 border border-yellow-500/30 rounded-full flex items-center justify-center text-3xl mx-auto shadow-[0_0_15px_rgba(234,179,8,0.15)] mb-4">🔒</div>
             <h3 className="text-2xl font-black text-white tracking-tight">Recurso Premium</h3>
             <p className="text-sm text-gray-400 mt-3 mb-6 leading-relaxed">
-              Para veres quem tem o que procuras, iniciares conversas e propões trocas no Mercado Global, desbloqueia o WheelTrack PRO.
+              Para iniciares conversas e propores trocas no Mercado Global, desbloqueia o WheelTrack PRO. Utilizadores Free podem ler e responder a propostas recebidas.
             </p>
             <button 
               onClick={() => alert("A redirecionar para pagamento Stripe...")}
