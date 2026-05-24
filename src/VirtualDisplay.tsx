@@ -25,6 +25,7 @@ export default function VirtualDisplay() {
   // Estado dos Dados
   const [displaysList, setDisplaysList] = useState<any[]>([]);
   const [allMiniatures, setAllMiniatures] = useState<any[]>([]);
+  const [globalMarket, setGlobalMarket] = useState<any[]>([]); // NOVO ESTADO: Mercado Global
   const [currentDisplay, setCurrentDisplay] = useState<any>(null);
   const [miniatures, setMiniatures] = useState<any[]>([]);
   
@@ -50,6 +51,7 @@ export default function VirtualDisplay() {
       if (!user) return;
       setUserId(user.id);
 
+      // Carrega o Perfil (Free/Premium)
       const { data: profileData } = await supabase
         .from('user_profiles')
         .select('subscription_status')
@@ -58,11 +60,23 @@ export default function VirtualDisplay() {
       
       setSubscriptionStatus(profileData?.subscription_status as 'free' | 'premium' || 'free');
 
+      // Carrega os Expositores do Utilizador
       const { data: displaysData } = await supabase.from('displays').select('*').eq('user_id', user.id);
       setDisplaysList(displaysData || []);
 
+      // Carrega os Carros do Utilizador
       const { data: allMiniaturesData } = await supabase.from('miniatures').select('*').eq('user_id', user.id);
       setAllMiniatures(allMiniaturesData || []);
+
+      // NOVO: Carrega TODOS os carros disponíveis para troca (Mercado Global)
+      const { data: marketData } = await supabase
+        .from('miniatures')
+        .select('*')
+        .eq('is_for_trade', true)
+        .order('created_at', { ascending: false }); // Mostra os mais recentes primeiro
+        
+      setGlobalMarket(marketData || []);
+
     } catch (err: any) {
       console.error("Erro global:", err.message);
     } finally {
@@ -222,7 +236,7 @@ export default function VirtualDisplay() {
         <Dashboard 
           allMiniatures={allMiniatures}
           displaysList={displaysList}
-          globalMarket={[]}
+          globalMarket={globalMarket} // AQUI: Ligamos a pesquisa ao Dashboard!
           subscriptionStatus={subscriptionStatus}
           onSelectDisplay={loadMiniatures}
           onDeleteDisplay={handleDeleteDisplay}
