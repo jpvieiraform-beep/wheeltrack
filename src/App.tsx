@@ -6,6 +6,7 @@ export default function App() {
   const [session, setSession] = useState<any>(null);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [fullName, setFullName] = useState(''); // NOVO ESTADO: Nome de Colecionador
   const [isRegistering, setIsRegistering] = useState(false);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState('');
@@ -31,9 +32,34 @@ export default function App() {
     
     if (isRegistering) {
       // REGISTO DE NOVO UTILIZADOR
-      const { error } = await supabase.auth.signUp({ email, password });
-      if (error) setMessage(`Erro: ${error.message}`);
-      else setMessage('Registo feito com sucesso! Confirma o teu email.');
+      if (!fullName.trim()) {
+        setMessage('Erro: Tens de escolher um Nome de Colecionador.');
+        return;
+      }
+
+      const { data, error } = await supabase.auth.signUp({ email, password });
+      
+      if (error) {
+        setMessage(`Erro: ${error.message}`);
+      } else if (data?.user) {
+        // Criar o perfil na tabela user_profiles com o nome inserido
+        const { error: profileError } = await supabase
+          .from('user_profiles')
+          .insert([
+            { 
+              id: data.user.id, 
+              full_name: fullName.trim(),
+              subscription_status: 'free' 
+            }
+          ]);
+
+        if (profileError) {
+          console.error("Erro ao criar perfil:", profileError.message);
+        }
+
+        setMessage('Registo feito com sucesso! Confirma o teu email.');
+        setFullName('');
+      }
     } else {
       // LOGIN DE UTILIZADOR EXISTENTE
       const { error } = await supabase.auth.signInWithPassword({ email, password });
@@ -60,6 +86,21 @@ export default function App() {
           </div>
 
           <form onSubmit={handleAuth} className="space-y-4">
+            {/* NOVO CAMPO: APARECE APENAS NO REGISTO */}
+            {isRegistering && (
+              <div className="animate-fade-in">
+                <label className="block text-xs font-semibold text-gray-400 uppercase mb-2">Nome de Colecionador (Username)</label>
+                <input
+                  type="text"
+                  value={fullName}
+                  onChange={(e) => setFullName(e.target.value)}
+                  placeholder="Ex: Paulo_HotWheels"
+                  className="w-full bg-gray-950 border border-gray-700 rounded-lg p-3 text-white focus:outline-none focus:border-yellow-500 transition"
+                  required={isRegistering}
+                />
+              </div>
+            )}
+
             <div>
               <label className="block text-xs font-semibold text-gray-400 uppercase mb-2">Email</label>
               <input
@@ -79,7 +120,7 @@ export default function App() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="******"
-                className="w-full bg-gray-950 border border-gray-700 rounded-lg p-3 text-white focus:outline-none focus:border-yellow-500 transition"
+                className="w-full bg-gray-950 border border-gray-750 rounded-lg p-3 text-white focus:outline-none focus:border-yellow-500 transition"
                 required
               />
             </div>
@@ -103,6 +144,7 @@ export default function App() {
               onClick={() => {
                 setIsRegistering(!isRegistering);
                 setMessage('');
+                setFullName('');
               }}
               className="text-xs text-yellow-500 hover:underline"
             >
