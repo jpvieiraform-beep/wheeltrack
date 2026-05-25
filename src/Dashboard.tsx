@@ -13,7 +13,6 @@ interface DashboardProps {
   onDeleteDisplay: (e: React.MouseEvent, displayId: string, displayName: string) => void;
   onCreateNewClick: () => void;
   onLogout: () => void;
-  // Propriedades da Wishlist vindas do VirtualDisplay
   wishlist: any[];
   onAddToWishlist: (carName: string, series: string, toyCode: string) => Promise<void>;
   onRemoveFromWishlist: (wishlistId: string) => Promise<void>;
@@ -23,7 +22,6 @@ export default function Dashboard({
   allMiniatures, displaysList, globalMarket, subscriptionStatus, onSelectDisplay, onDeleteDisplay, onCreateNewClick, onLogout,
   wishlist, onAddToWishlist, onRemoveFromWishlist
 }: DashboardProps) {
-  // Agora temos 4 abas estruturadas
   const [activeTab, setActiveTab] = useState<'expositores' | 'wishlist' | 'mercado' | 'trocas'>('expositores');
   const [showPaywall, setShowPaywall] = useState(false);
   
@@ -35,6 +33,7 @@ export default function Dashboard({
   const [chatMessages, setChatMessages] = useState<any[]>([]);
   const [replyText, setReplyText] = useState('');
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [currentUserEmail, setCurrentUserEmail] = useState<string>('');
   const [userProfiles, setUserProfiles] = useState<Record<string, string>>({});
 
   // Estados do Formulário da Wishlist
@@ -43,11 +42,14 @@ export default function Dashboard({
   const [newToyCode, setNewToyCode] = useState('');
 
   useEffect(() => {
-    async function getUserId() {
+    async function getUserData() {
       const { data: { user } } = await supabase.auth.getUser();
-      if (user) setCurrentUserId(user.id);
+      if (user) {
+        setCurrentUserId(user.id);
+        setCurrentUserEmail(user.email || '');
+      }
     }
-    getUserId();
+    getUserData();
   }, []);
 
   // Busca nomes reais para os utilizadores da rede
@@ -86,6 +88,37 @@ export default function Dashboard({
     }
   }, [activeChatUser, currentUserId]);
 
+  // Redirecionamento dinâmico para a tua Edge Function com o endpoint "smooth-function"
+  const handleCheckout = async () => {
+    try {
+      const SUPABASE_PROJECT_URL = window.location.hostname === 'localhost' 
+        ? 'http://127.0.0.1:54321' 
+        : 'https://xmopkisvoxpnrorlexfz.supabase.co';
+      
+      const response = await fetch(`${SUPABASE_PROJECT_URL}/functions/v1/smooth-function`, {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${supabase['supabaseAnonKey'] || ''}`
+        },
+        body: JSON.stringify({ 
+          userId: currentUserId, 
+          email: currentUserEmail 
+        })
+      });
+      
+      const data = await response.json();
+      if (data.url) {
+        window.location.href = data.url; 
+      } else {
+        alert("Erro ao gerar pagamento: " + (data.error || "Tenta novamente."));
+      }
+    } catch (err) {
+      console.error("Erro no Stripe Checkout:", err);
+      alert("Erro de ligação ao servidor de pagamentos.");
+    }
+  };
+
   const fetchMyChats = async () => {
     const { data } = await supabase
       .from('messages')
@@ -97,7 +130,9 @@ export default function Dashboard({
       const contactsMap: { [key: string]: any } = {};
       data.forEach(msg => {
         const otherId = msg.sender_id === currentUserId ? msg.receiver_id : msg.sender_id;
-        if (!contactsMap[otherId]) contactsMap[otherId] = { userId: otherId, lastMessage: msg.content, date: msg.created_at };
+        if (!contactsMap[otherId]) {
+          contactsMap[otherId] = { userId: otherId, lastMessage: msg.content, date: msg.created_at };
+        }
       });
       setMyChats(Object.values(contactsMap));
     }
@@ -171,15 +206,11 @@ export default function Dashboard({
     setNewToyCode('');
   };
 
-  // LÓGICA CRÍTICA: Calcular Cruzamentos de Matches em Tempo Real
   const calculateMatches = () => {
     const matchesList: any[] = [];
-    
     wishlist.forEach(wish => {
       globalMarket.forEach(marketCar => {
-        // Regra de Match: O carro não pode ser meu E tem de coincidir pelo ToyCode (se preenchido) ou pelo Nome
         const isNotMine = marketCar.user_id !== currentUserId;
-        
         let isMatch = false;
         if (wish.toy_code && marketCar.toy_code) {
           isMatch = wish.toy_code.toLowerCase().trim() === marketCar.toy_code.toLowerCase().trim();
@@ -189,15 +220,10 @@ export default function Dashboard({
         }
 
         if (isNotMine && isMatch) {
-          matchesList.push({
-            id: wish.id,
-            wishName: wish.car_name,
-            car: marketCar
-          });
+          matchesList.push({ id: wish.id, wishName: wish.car_name, car: marketCar });
         }
       });
     });
-
     return matchesList;
   };
 
@@ -315,7 +341,6 @@ export default function Dashboard({
       {/* ABA: WISHLIST */}
       {activeTab === 'wishlist' && (
         <div className="pt-2 animate-fade-in grid md:grid-cols-3 gap-6">
-          {/* Formulário para Adicionar */}
           <div className="bg-gray-900 border border-gray-800 p-5 rounded-2xl h-fit space-y-4 text-left">
             <h3 className="text-sm font-black text-white uppercase tracking-wider border-b border-gray-800 pb-2">Adicionar à Lista</h3>
             <form onSubmit={handleWishlistSubmit} className="space-y-3">
@@ -329,13 +354,12 @@ export default function Dashboard({
               </div>
               <div>
                 <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Código Toy# / Fabrico (Opcional)</label>
-                <input type="text" value={newToyCode} onChange={(e) => setNewToyCode(e.target.value)} placeholder="Ex: HKG27 (Garante Match 100% Exato)" className="w-full bg-gray-950 border border-gray-750 rounded-xl p-2.5 text-xs text-white focus:outline-none focus:border-yellow-500" />
+                <input type="text" value={newToyCode} onChange={(e) => setNewToyCode(e.target.value)} placeholder="Ex: HKG27" className="w-full bg-gray-950 border border-gray-750 rounded-xl p-2.5 text-xs text-white focus:outline-none focus:border-yellow-500" />
               </div>
               <button type="submit" className="w-full py-2.5 bg-yellow-500 text-gray-950 font-black text-xs rounded-xl uppercase tracking-wider hover:bg-yellow-400 transition shadow">Lançar Desejo</button>
             </form>
           </div>
 
-          {/* Listagem da Wishlist */}
           <div className="md:col-span-2 space-y-4 text-left">
             <h3 className="text-sm font-black text-white uppercase tracking-wider border-b border-gray-800 pb-2">Modelos Caçados ({wishlist.length})</h3>
             {wishlist.length === 0 ? (
@@ -401,18 +425,16 @@ export default function Dashboard({
       {/* ABA: CENTRAL DE MATCHES / CHAT */}
       {activeTab === 'trocas' && (
         <div className="pt-2 animate-fade-in space-y-4">
-          
-          {/* LÓGICA DE MATCHES INTELIGENTES (A MONTRA DE CONVERSÃO PRO) */}
           <div className="bg-gray-900/40 border border-gray-800/80 p-5 rounded-2xl text-left space-y-3">
             <h3 className="text-sm font-black text-yellow-500 uppercase tracking-wider flex items-center gap-2">📡 Radar de Cruzamentos Automáticos</h3>
             
             {subscriptionStatus === 'free' ? (
               <div className="bg-gray-950 border border-gray-850 p-6 rounded-xl text-center space-y-3 relative overflow-hidden">
-                <p className="text-xs text-gray-400 max-w-sm mx-auto">O radar cruzou a tua Wishlist e detetou **{activeMatches.length} matches potenciais** na rede neste momento! Desbloqueia o Premium para abrir os perfis e fechar trocas.</p>
-                <button onClick={() => setShowPaywall(true)} className="bg-gradient-to-r from-yellow-500 to-amber-600 text-gray-950 font-black text-xs px-5 py-2 rounded-xl uppercase shadow">Ver {activeMatches.length} Matches</button>
+                <p className="text-xs text-gray-400 max-w-sm mx-auto">O radar cruzou a tua Wishlist e detetou **{activeMatches.length} matches potenciais** na rede! Desbloqueia o Premium para abrir os perfis e fechar trocas.</p>
+                <button onClick={handleCheckout} className="bg-gradient-to-r from-yellow-500 to-amber-600 text-gray-950 font-black text-xs px-5 py-2 rounded-xl uppercase shadow">Ver {activeMatches.length} Matches</button>
               </div>
             ) : activeMatches.length === 0 ? (
-              <p className="text-xs text-gray-500">Nenhum colecionador tem atualmente os carros da tua Wishlist marcados para troca. O radar continua ativo 24/7!</p>
+              <p className="text-xs text-gray-500">Nenhum colecionador tem atualmente os carros da tua Wishlist marcados para troca.</p>
             ) : (
               <div className="grid sm:grid-cols-2 gap-3">
                 {activeMatches.map((match, i) => (
@@ -429,9 +451,7 @@ export default function Dashboard({
             )}
           </div>
 
-          {/* O Sistema de Chat debaixo do Radar */}
           <div className="bg-gray-900 border border-gray-800 rounded-2xl overflow-hidden h-[450px] flex shadow-xl">
-            {/* Barra Lateral: Contactos */}
             <div className="w-1/3 border-r border-gray-800 bg-gray-950 flex flex-col">
               <div className="p-4 border-b border-gray-800 text-left"><h3 className="text-xs font-black text-white uppercase tracking-wider">Conversas</h3></div>
               <div className="flex-1 overflow-y-auto divide-y divide-gray-900">
@@ -451,7 +471,6 @@ export default function Dashboard({
               </div>
             </div>
 
-            {/* Janela de Chat */}
             <div className="flex-1 flex flex-col bg-gray-900">
               {activeChatUser ? (
                 <>
@@ -512,7 +531,15 @@ export default function Dashboard({
             <div className="w-16 h-16 bg-yellow-500/10 border border-yellow-500/30 rounded-full flex items-center justify-center text-3xl mx-auto shadow-[0_0_15px_rgba(234,179,8,0.15)] mb-4">🔒</div>
             <h3 className="text-2xl font-black text-white tracking-tight">Recurso Premium</h3>
             <p className="text-sm text-gray-400 mt-3 mb-6 leading-relaxed">Para iniciares conversas, veres o cruzamento de dados e veres quem tem o carro que procuras, desbloqueia o WheelTrack PRO.</p>
-            <button onClick={() => alert("A redirecionar para pagamento Stripe...")} className="w-full py-3.5 bg-gradient-to-r from-yellow-500 to-amber-600 text-gray-950 font-black text-sm rounded-xl uppercase tracking-wider shadow transform hover:scale-[1.02]">Desbloquear por 2,99€ / Mês</button>
+            
+            <button onClick={handleCheckout} className="w-full py-3.5 bg-gradient-to-r from-yellow-500 to-amber-600 hover:from-yellow-400 hover:to-amber-500 text-gray-950 font-black text-sm rounded-xl uppercase tracking-wider shadow-lg transition transform hover:scale-[1.02]">
+              Desbloquear por 2,99€ / Mês
+            </button>
+            
+            <div className="mt-4 flex flex-col gap-2 text-[10px] text-gray-500 font-medium">
+              <span className="flex items-center justify-center gap-1">✔️ Cancela a qualquer momento</span>
+              <span className="flex items-center justify-center gap-1">✔️ Match instantâneo por Código Toy#</span>
+            </div>
           </div>
         </div>
       )}
