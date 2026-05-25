@@ -95,18 +95,17 @@ export default function Dashboard({
         ? 'http://127.0.0.1:54321' 
         : 'https://xmopkisvoxpnrorlexfz.supabase.co';
       
-        const response = await fetch(`${SUPABASE_PROJECT_URL}/functions/v1/smooth-function`, {
-          method: 'POST',
-          headers: { 
-            'Content-Type': 'application/json',
-            // USAR A VARIÁVEL DO VITE DIRECTAMENTE EM VEZ DE PROPRIEDADE INTERNA
-            'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY || ''}`
-          },
-          body: JSON.stringify({ 
-            userId: currentUserId, 
-            email: currentUserEmail 
-          })
-        });
+      const response = await fetch(`${SUPABASE_PROJECT_URL}/functions/v1/smooth-function`, {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY || ''}`
+        },
+        body: JSON.stringify({ 
+          userId: currentUserId, 
+          email: currentUserEmail 
+        })
+      });
       
       const data = await response.json();
       if (data.url) {
@@ -429,14 +428,28 @@ export default function Dashboard({
           <div className="bg-gray-900/40 border border-gray-800/80 p-5 rounded-2xl text-left space-y-3">
             <h3 className="text-sm font-black text-yellow-500 uppercase tracking-wider flex items-center gap-2">📡 Radar de Cruzamentos Automáticos</h3>
             
+            {/* SE FOR FREE: MOSTRA O CARD DE CONVERSÃO DO STRIPE DIRETAMENTE */}
             {subscriptionStatus === 'free' ? (
-              <div className="bg-gray-950 border border-gray-850 p-6 rounded-xl text-center space-y-3 relative overflow-hidden">
-                <p className="text-xs text-gray-400 max-w-sm mx-auto">O radar cruzou a tua Wishlist e detetou **{activeMatches.length} matches potenciais** na rede! Desbloqueia o Premium para abrir os perfis e fechar trocas.</p>
-                <button onClick={handleCheckout} className="bg-gradient-to-r from-yellow-500 to-amber-600 text-gray-950 font-black text-xs px-5 py-2 rounded-xl uppercase shadow">Ver {activeMatches.length} Matches</button>
+              <div className="bg-gradient-to-br from-gray-950 to-gray-900 border border-yellow-500/20 p-6 rounded-xl text-center space-y-4 relative overflow-hidden">
+                <div className="absolute top-0 right-0 bg-yellow-500 text-gray-950 text-[9px] font-black px-3 py-1 uppercase tracking-wider rounded-bl-lg animate-pulse">
+                  {activeMatches.length} Cruzamentos Detetados!
+                </div>
+                <p className="text-xs text-gray-300 max-w-md mx-auto leading-relaxed">
+                  O radar detetou <span className="text-yellow-500 font-bold">{activeMatches.length} correspondências</span> entre a tua Wishlist e o Mercado Global! Desbloqueia o acesso para abrir as conversas e fechar os teus negócios.
+                </p>
+                <div className="pt-2">
+                  <button 
+                    onClick={handleCheckout} 
+                    className="bg-gradient-to-r from-yellow-500 to-amber-600 hover:from-yellow-400 hover:to-amber-500 text-gray-950 font-black text-xs px-6 py-3 rounded-xl uppercase tracking-wider shadow-lg transform hover:scale-[1.01] transition-all"
+                  >
+                    Ativar Conta PRO por 2,99€ / Mês
+                  </button>
+                </div>
               </div>
             ) : activeMatches.length === 0 ? (
               <p className="text-xs text-gray-500">Nenhum colecionador tem atualmente os carros da tua Wishlist marcados para troca.</p>
             ) : (
+              /* SE FOR PREMIUM: EXIBE OS CARDS DOS MATCHES REAIS */
               <div className="grid sm:grid-cols-2 gap-3">
                 {activeMatches.map((match, i) => (
                   <div key={i} className="bg-gray-900 border-2 border-yellow-500/30 p-4 rounded-xl flex justify-between items-center shadow-lg">
@@ -524,10 +537,10 @@ export default function Dashboard({
         </div>
       )}
 
-      {/* PAYWALL ATIVA */}
+      {/* PAYWALL ATIVA (Lançada a partir dos cliques no Mercado Global) */}
       {showPaywall && subscriptionStatus === 'free' && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in">
-          <div className="relative w-full max-w-md bg-gray-900 border border-gray-700 p-8 rounded-3xl text-center shadow-[0_0_40px_rgba(0,0,0,0.8)]">
+          <div className="relative w-full max-w-md bg-gray-900 border border-gray-770 p-8 rounded-3xl text-center shadow-[0_0_40px_rgba(0,0,0,0.8)]">
             <button onClick={() => setShowPaywall(false)} className="absolute top-4 right-4 text-gray-500 hover:text-white">✕</button>
             <div className="w-16 h-16 bg-yellow-500/10 border border-yellow-500/30 rounded-full flex items-center justify-center text-3xl mx-auto shadow-[0_0_15px_rgba(234,179,8,0.15)] mb-4">🔒</div>
             <h3 className="text-2xl font-black text-white tracking-tight">Recurso Premium</h3>
