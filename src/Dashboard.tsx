@@ -13,12 +13,18 @@ interface DashboardProps {
   onDeleteDisplay: (e: React.MouseEvent, displayId: string, displayName: string) => void;
   onCreateNewClick: () => void;
   onLogout: () => void;
+  // Propriedades da Wishlist vindas do VirtualDisplay
+  wishlist: any[];
+  onAddToWishlist: (carName: string, series: string, toyCode: string) => Promise<void>;
+  onRemoveFromWishlist: (wishlistId: string) => Promise<void>;
 }
 
 export default function Dashboard({
-  allMiniatures, displaysList, globalMarket, subscriptionStatus, onSelectDisplay, onDeleteDisplay, onCreateNewClick, onLogout
+  allMiniatures, displaysList, globalMarket, subscriptionStatus, onSelectDisplay, onDeleteDisplay, onCreateNewClick, onLogout,
+  wishlist, onAddToWishlist, onRemoveFromWishlist
 }: DashboardProps) {
-  const [activeTab, setActiveTab] = useState<'expositores' | 'mercado' | 'trocas'>('expositores');
+  // Agora temos 4 abas estruturadas
+  const [activeTab, setActiveTab] = useState<'expositores' | 'wishlist' | 'mercado' | 'trocas'>('expositores');
   const [showPaywall, setShowPaywall] = useState(false);
   
   // Estados do Chat e Identidades
@@ -29,9 +35,12 @@ export default function Dashboard({
   const [chatMessages, setChatMessages] = useState<any[]>([]);
   const [replyText, setReplyText] = useState('');
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
-  
-  // Dicionário de Nomes: { "user_id": "Nome Real" }
   const [userProfiles, setUserProfiles] = useState<Record<string, string>>({});
+
+  // Estados do Formulário da Wishlist
+  const [newCarName, setNewCarName] = useState('');
+  const [newSeries, setNewSeries] = useState('');
+  const [newToyCode, setNewToyCode] = useState('');
 
   useEffect(() => {
     async function getUserId() {
@@ -41,7 +50,7 @@ export default function Dashboard({
     getUserId();
   }, []);
 
-  // Busca nomes reais para quem está no Mercado ou nos Chats
+  // Busca nomes reais para os utilizadores da rede
   useEffect(() => {
     async function fetchIdentities() {
       const uniqueIds = new Set<string>();
@@ -128,7 +137,7 @@ export default function Dashboard({
     }]);
 
     if (!error) {
-      alert("Proposta de troca enviada com sucesso para a Central de Matches!");
+      alert("Proposta de troca enviada!");
       setSelectedCarForPropose(null);
       setInitialMessage('');
       setActiveTab('trocas');
@@ -152,6 +161,47 @@ export default function Dashboard({
       fetchChatMessages(activeChatUser);
     }
   };
+
+  const handleWishlistSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newCarName.trim()) return;
+    await onAddToWishlist(newCarName, newSeries, newToyCode);
+    setNewCarName('');
+    setNewSeries('');
+    setNewToyCode('');
+  };
+
+  // LÓGICA CRÍTICA: Calcular Cruzamentos de Matches em Tempo Real
+  const calculateMatches = () => {
+    const matchesList: any[] = [];
+    
+    wishlist.forEach(wish => {
+      globalMarket.forEach(marketCar => {
+        // Regra de Match: O carro não pode ser meu E tem de coincidir pelo ToyCode (se preenchido) ou pelo Nome
+        const isNotMine = marketCar.user_id !== currentUserId;
+        
+        let isMatch = false;
+        if (wish.toy_code && marketCar.toy_code) {
+          isMatch = wish.toy_code.toLowerCase().trim() === marketCar.toy_code.toLowerCase().trim();
+        } else {
+          isMatch = marketCar.name.toLowerCase().includes(wish.car_name.toLowerCase()) || 
+                    wish.car_name.toLowerCase().includes(marketCar.name.toLowerCase());
+        }
+
+        if (isNotMine && isMatch) {
+          matchesList.push({
+            id: wish.id,
+            wishName: wish.car_name,
+            car: marketCar
+          });
+        }
+      });
+    });
+
+    return matchesList;
+  };
+
+  const activeMatches = calculateMatches();
 
   const extractLocation = (fullName: string) => {
     if (fullName && fullName.startsWith('[')) {
@@ -195,13 +245,18 @@ export default function Dashboard({
             <button onClick={() => setActiveTab('expositores')} className={`px-4 py-2 rounded-lg font-extrabold transition-all duration-150 ${activeTab === 'expositores' ? 'bg-yellow-500 text-gray-950 shadow-md' : 'text-gray-400 hover:text-white'}`}>
               🔲 Meus Expositores
             </button>
+            <button onClick={() => setActiveTab('wishlist')} className={`px-4 py-2 rounded-lg font-extrabold transition-all duration-150 ${activeTab === 'wishlist' ? 'bg-yellow-500 text-gray-950 shadow-md' : 'text-gray-400 hover:text-white'}`}>
+              ⭐ Wishlist
+            </button>
             <button onClick={() => setActiveTab('mercado')} className={`px-4 py-2 rounded-lg font-extrabold transition-all duration-150 ${activeTab === 'mercado' ? 'bg-yellow-500 text-gray-950 shadow-md' : 'text-gray-400 hover:text-white'}`}>
               🌐 Mercado Global
             </button>
             <button onClick={() => setActiveTab('trocas')} className={`px-4 py-2 rounded-lg font-extrabold transition-all duration-150 flex items-center gap-2 ${activeTab === 'trocas' ? 'bg-yellow-500 text-gray-950 shadow-md' : 'text-gray-400 hover:text-white'}`}>
               🔄 Central Matches
-              {subscriptionStatus === 'free' && (
-                <span className="text-[9px] bg-red-600 text-white px-1.5 py-0.5 rounded uppercase font-black animate-pulse shadow-sm">Pro</span>
+              {activeMatches.length > 0 && (
+                <span className="bg-red-600 text-white px-1.5 py-0.5 rounded-full text-[9px] font-black animate-pulse">
+                  {activeMatches.length}
+                </span>
               )}
             </button>
           </div>
@@ -257,6 +312,54 @@ export default function Dashboard({
         </>
       )}
 
+      {/* ABA: WISHLIST */}
+      {activeTab === 'wishlist' && (
+        <div className="pt-2 animate-fade-in grid md:grid-cols-3 gap-6">
+          {/* Formulário para Adicionar */}
+          <div className="bg-gray-900 border border-gray-800 p-5 rounded-2xl h-fit space-y-4 text-left">
+            <h3 className="text-sm font-black text-white uppercase tracking-wider border-b border-gray-800 pb-2">Adicionar à Lista</h3>
+            <form onSubmit={handleWishlistSubmit} className="space-y-3">
+              <div>
+                <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Modelo / Nome do Carro *</label>
+                <input type="text" value={newCarName} onChange={(e) => setNewCarName(e.target.value)} placeholder="Ex: Nissan Skyline GT-R" className="w-full bg-gray-950 border border-gray-750 rounded-xl p-2.5 text-xs text-white focus:outline-none focus:border-yellow-500" required />
+              </div>
+              <div>
+                <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Série (Opcional)</label>
+                <input type="text" value={newSeries} onChange={(e) => setNewSeries(e.target.value)} placeholder="Ex: Then and Now" className="w-full bg-gray-950 border border-gray-750 rounded-xl p-2.5 text-xs text-white focus:outline-none focus:border-yellow-500" />
+              </div>
+              <div>
+                <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Código Toy# / Fabrico (Opcional)</label>
+                <input type="text" value={newToyCode} onChange={(e) => setNewToyCode(e.target.value)} placeholder="Ex: HKG27 (Garante Match 100% Exato)" className="w-full bg-gray-950 border border-gray-750 rounded-xl p-2.5 text-xs text-white focus:outline-none focus:border-yellow-500" />
+              </div>
+              <button type="submit" className="w-full py-2.5 bg-yellow-500 text-gray-950 font-black text-xs rounded-xl uppercase tracking-wider hover:bg-yellow-400 transition shadow">Lançar Desejo</button>
+            </form>
+          </div>
+
+          {/* Listagem da Wishlist */}
+          <div className="md:col-span-2 space-y-4 text-left">
+            <h3 className="text-sm font-black text-white uppercase tracking-wider border-b border-gray-800 pb-2">Modelos Caçados ({wishlist.length})</h3>
+            {wishlist.length === 0 ? (
+              <div className="bg-gray-900/40 border border-gray-800/50 rounded-2xl p-8 text-center text-gray-500 text-sm">A tua lista de caça está vazia. Adiciona carros ao lado!</div>
+            ) : (
+              <div className="grid sm:grid-cols-2 gap-3">
+                {wishlist.map((item) => (
+                  <div key={item.id} className="bg-gray-900 border border-gray-800 p-4 rounded-xl flex justify-between items-center group hover:border-gray-700 shadow transition">
+                    <div>
+                      <h4 className="text-sm font-bold text-white">{item.car_name}</h4>
+                      <div className="flex gap-2 mt-1">
+                        {item.series && <span className="text-[9px] bg-gray-950 px-2 py-0.5 rounded text-gray-400">🎬 {item.series}</span>}
+                        {item.toy_code && <span className="text-[9px] bg-yellow-500/10 border border-yellow-500/20 px-2 py-0.5 rounded text-yellow-500 font-mono"># {item.toy_code}</span>}
+                      </div>
+                    </div>
+                    <button onClick={() => onRemoveFromWishlist(item.id)} className="text-gray-600 hover:text-red-500 text-xs transition p-2">🗑️</button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* ABA: MERCADO GLOBAL */}
       {activeTab === 'mercado' && (
         <div className="pt-2 animate-fade-in space-y-4">
@@ -281,17 +384,13 @@ export default function Dashboard({
                     {car.rarity_type}
                   </div>
                 </div>
-                <div className="p-3 flex flex-col flex-1">
+                <div className="p-3 flex flex-col flex-1 text-left">
                   <h4 className="text-sm font-bold text-white truncate">{car.name}</h4>
                   <span className="text-[10px] text-gray-400 mt-1">Série: {car.series || 'N/A'}</span>
-                  <span className="text-[10px] text-yellow-500 font-bold mt-1 flex items-center gap-1">👤 {userProfiles[car.user_id] || 'Colecionador'}</span>
+                  {car.toy_code && <span className="text-[9px] text-yellow-500 font-mono">#{car.toy_code}</span>}
+                  <span className="text-[10px] text-yellow-500 font-bold mt-2 flex items-center gap-1">👤 {userProfiles[car.user_id] || 'Colecionador'}</span>
                   
-                  <button 
-                    onClick={() => handleProporTrocaClick(car)}
-                    className="mt-auto pt-3 w-full border-t border-gray-800 text-xs font-bold text-blue-400 hover:text-blue-300 transition uppercase tracking-wide flex items-center justify-center gap-2"
-                  >
-                    💬 Propor Troca
-                  </button>
+                  <button onClick={() => handleProporTrocaClick(car)} className="mt-auto pt-3 w-full border-t border-gray-800 text-xs font-bold text-blue-400 hover:text-blue-300 transition uppercase tracking-wide flex items-center justify-center gap-2">💬 Propor Troca</button>
                 </div>
               </div>
             ))}
@@ -301,106 +400,104 @@ export default function Dashboard({
 
       {/* ABA: CENTRAL DE MATCHES / CHAT */}
       {activeTab === 'trocas' && (
-        <div className="bg-gray-900 border border-gray-800 rounded-2xl overflow-hidden h-[500px] flex shadow-xl animate-fade-in">
-          {/* Barra Lateral: Lista de Contactos */}
-          <div className="w-1/3 border-r border-gray-800 bg-gray-950 flex flex-col">
-            <div className="p-4 border-b border-gray-800">
-              <h3 className="text-sm font-black text-white uppercase tracking-wider">Conversas Ativas</h3>
-            </div>
-            <div className="flex-1 overflow-y-auto divide-y divide-gray-900">
-              {myChats.length === 0 ? (
-                <div className="p-4 text-xs text-gray-500 text-center mt-10">Nenhuma conversa iniciada. Propõe uma troca no mercado!</div>
-              ) : (
-                myChats.map((chat) => (
-                  <div 
-                    key={chat.userId} 
-                    onClick={() => setActiveChatUser(chat.userId)}
-                    className={`p-4 cursor-pointer transition text-left ${activeChatUser === chat.userId ? 'bg-gray-900' : 'hover:bg-gray-900/40'}`}
-                  >
-                    <div className="flex justify-between items-center">
-                      <span className="text-xs font-bold text-yellow-500 truncate">{userProfiles[chat.userId] || 'Colecionador'}</span>
-                      <span className="text-[9px] text-gray-500">{new Date(chat.date).toLocaleDateString()}</span>
-                    </div>
-                    <p className="text-xs text-gray-400 truncate mt-1">{chat.lastMessage}</p>
-                  </div>
-                ))
-              )}
-            </div>
-          </div>
-
-          {/* Área Principal: Janela de Chat */}
-          <div className="flex-1 flex flex-col bg-gray-900">
-            {activeChatUser ? (
-              <>
-                {/* Cabeçalho do Chat */}
-                <div className="p-4 border-b border-gray-800 bg-gray-950 text-left">
-                  <span className="text-xs font-black text-white uppercase tracking-wide">
-                    Conversa com <span className="text-yellow-500">{userProfiles[activeChatUser] || 'Colecionador'}</span>
-                  </span>
-                </div>
-                
-                {/* Balões de Mensagem */}
-                <div className="flex-1 p-4 overflow-y-auto space-y-3 flex flex-col">
-                  {chatMessages.map((msg) => {
-                    const isMe = msg.sender_id === currentUserId;
-                    return (
-                      <div key={msg.id} className={`max-w-[70%] p-3 rounded-2xl text-sm text-left ${isMe ? 'bg-blue-600 text-white self-end rounded-br-none' : 'bg-gray-800 text-gray-200 self-start rounded-bl-none'}`}>
-                        <p>{msg.content}</p>
-                        <span className="text-[8px] opacity-60 block text-right mt-1">
-                          {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                        </span>
-                      </div>
-                    );
-                  })}
-                </div>
-
-                {/* Caixa de Input de Resposta */}
-                <form onSubmit={handleSendReply} className="p-3 bg-gray-950 border-t border-gray-800 flex gap-2">
-                  <input 
-                    type="text" 
-                    value={replyText}
-                    onChange={(e) => setReplyText(e.target.value)}
-                    placeholder="Escreve uma resposta..." 
-                    className="flex-1 bg-gray-900 border border-gray-750 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-blue-500"
-                  />
-                  <button type="submit" className="bg-blue-600 hover:bg-blue-500 text-white px-5 font-bold text-xs rounded-xl uppercase tracking-wider transition">Enviar</button>
-                </form>
-              </>
+        <div className="pt-2 animate-fade-in space-y-4">
+          
+          {/* LÓGICA DE MATCHES INTELIGENTES (A MONTRA DE CONVERSÃO PRO) */}
+          <div className="bg-gray-900/40 border border-gray-800/80 p-5 rounded-2xl text-left space-y-3">
+            <h3 className="text-sm font-black text-yellow-500 uppercase tracking-wider flex items-center gap-2">📡 Radar de Cruzamentos Automáticos</h3>
+            
+            {subscriptionStatus === 'free' ? (
+              <div className="bg-gray-950 border border-gray-850 p-6 rounded-xl text-center space-y-3 relative overflow-hidden">
+                <p className="text-xs text-gray-400 max-w-sm mx-auto">O radar cruzou a tua Wishlist e detetou **{activeMatches.length} matches potenciais** na rede neste momento! Desbloqueia o Premium para abrir os perfis e fechar trocas.</p>
+                <button onClick={() => setShowPaywall(true)} className="bg-gradient-to-r from-yellow-500 to-amber-600 text-gray-950 font-black text-xs px-5 py-2 rounded-xl uppercase shadow">Ver {activeMatches.length} Matches</button>
+              </div>
+            ) : activeMatches.length === 0 ? (
+              <p className="text-xs text-gray-500">Nenhum colecionador tem atualmente os carros da tua Wishlist marcados para troca. O radar continua ativo 24/7!</p>
             ) : (
-              <div className="flex-1 flex flex-col items-center justify-center text-gray-500 space-y-2">
-                <span className="text-3xl">💬</span>
-                <p className="text-xs font-medium">Seleciona um colecionador na barra lateral para falar.</p>
+              <div className="grid sm:grid-cols-2 gap-3">
+                {activeMatches.map((match, i) => (
+                  <div key={i} className="bg-gray-900 border-2 border-yellow-500/30 p-4 rounded-xl flex justify-between items-center shadow-lg">
+                    <div>
+                      <span className="text-[9px] bg-yellow-500 text-gray-950 font-black px-1.5 py-0.5 rounded uppercase">Match Ideal</span>
+                      <h4 className="text-sm font-bold text-white mt-1.5">Tu queres: {match.wishName}</h4>
+                      <p className="text-xs text-gray-400">Disponível com: <span className="text-yellow-500 font-bold">{userProfiles[match.car.user_id] || 'Colecionador'}</span></p>
+                    </div>
+                    <button onClick={() => handleProporTrocaClick(match.car)} className="bg-blue-600 text-white font-bold text-xs px-3 py-2 rounded-lg uppercase">Negociar</button>
+                  </div>
+                ))}
               </div>
             )}
+          </div>
+
+          {/* O Sistema de Chat debaixo do Radar */}
+          <div className="bg-gray-900 border border-gray-800 rounded-2xl overflow-hidden h-[450px] flex shadow-xl">
+            {/* Barra Lateral: Contactos */}
+            <div className="w-1/3 border-r border-gray-800 bg-gray-950 flex flex-col">
+              <div className="p-4 border-b border-gray-800 text-left"><h3 className="text-xs font-black text-white uppercase tracking-wider">Conversas</h3></div>
+              <div className="flex-1 overflow-y-auto divide-y divide-gray-900">
+                {myChats.length === 0 ? (
+                  <div className="p-4 text-xs text-gray-500 text-center mt-10">Nenhuma conversa ativa.</div>
+                ) : (
+                  myChats.map((chat) => (
+                    <div key={chat.userId} onClick={() => setActiveChatUser(chat.userId)} className={`p-4 cursor-pointer transition text-left ${activeChatUser === chat.userId ? 'bg-gray-900' : 'hover:bg-gray-900/40'}`}>
+                      <div className="flex justify-between items-center">
+                        <span className="text-xs font-bold text-yellow-500 truncate">{userProfiles[chat.userId] || 'Colecionador'}</span>
+                        <span className="text-[9px] text-gray-500">{new Date(chat.date).toLocaleDateString()}</span>
+                      </div>
+                      <p className="text-xs text-gray-400 truncate mt-1">{chat.lastMessage}</p>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+
+            {/* Janela de Chat */}
+            <div className="flex-1 flex flex-col bg-gray-900">
+              {activeChatUser ? (
+                <>
+                  <div className="p-4 border-b border-gray-800 bg-gray-950 text-left">
+                    <span className="text-xs font-black text-white uppercase tracking-wide">Conversa com <span className="text-yellow-500">{userProfiles[activeChatUser] || 'Colecionador'}</span></span>
+                  </div>
+                  <div className="flex-1 p-4 overflow-y-auto space-y-3 flex flex-col">
+                    {chatMessages.map((msg) => {
+                      const isMe = msg.sender_id === currentUserId;
+                      return (
+                        <div key={msg.id} className={`max-w-[70%] p-3 rounded-2xl text-sm text-left ${isMe ? 'bg-blue-600 text-white self-end rounded-br-none' : 'bg-gray-800 text-gray-200 self-start rounded-bl-none'}`}>
+                          <p>{msg.content}</p>
+                          <span className="text-[8px] opacity-60 block text-right mt-1">{new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <form onSubmit={handleSendReply} className="p-3 bg-gray-950 border-t border-gray-800 flex gap-2">
+                    <input type="text" value={replyText} onChange={(e) => setReplyText(e.target.value)} placeholder="Escreve uma resposta..." className="flex-1 bg-gray-900 border border-gray-750 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none" />
+                    <button type="submit" className="bg-blue-600 text-white px-5 font-bold text-xs rounded-xl uppercase">Enviar</button>
+                  </form>
+                </>
+              ) : (
+                <div className="flex-1 flex flex-col items-center justify-center text-gray-500 space-y-2">
+                  <span className="text-3xl">💬</span>
+                  <p className="text-xs font-medium">Seleciona um contacto para conversar.</p>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}
 
-      {/* MODAL: MANDAR MENSAGEM INICIAL */}
+      {/* MODAL MENSAGEM INICIAL */}
       {selectedCarForPropose && (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-gray-900 border border-gray-800 p-6 rounded-2xl max-w-md w-full space-y-4 shadow-2xl text-left">
             <h3 className="text-sm font-black text-white uppercase tracking-wider border-b border-gray-800 pb-2">Proposta de Troca</h3>
-            <div className="bg-gray-950 p-3 rounded-xl border border-gray-850 flex gap-3 items-center">
-              <span className="text-2xl">🚗</span>
-              <div>
-                <h4 className="text-xs font-bold text-white">{selectedCarForPropose.name}</h4>
-                <p className="text-[10px] text-gray-500">Série: {selectedCarForPropose.series || 'N/A'}</p>
-              </div>
-            </div>
             <form onSubmit={handleSendInitialMessage} className="space-y-4">
               <div>
                 <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Mensagem Inicial</label>
-                <textarea 
-                  value={initialMessage} 
-                  onChange={(e) => setInitialMessage(e.target.value)}
-                  className="w-full h-24 bg-gray-950 border border-gray-750 rounded-xl p-3 text-xs text-white focus:outline-none focus:border-yellow-500 resize-none"
-                  required
-                ></textarea>
+                <textarea value={initialMessage} onChange={(e) => setInitialMessage(e.target.value)} className="w-full h-24 bg-gray-950 border border-gray-750 rounded-xl p-3 text-xs text-white focus:outline-none resize-none" required></textarea>
               </div>
               <div className="flex justify-end gap-3 pt-2">
-                <button type="button" onClick={() => setSelectedCarForPropose(null)} className="px-3 py-1.5 text-xs font-bold text-gray-400 hover:text-white transition">Cancelar</button>
-                <button type="submit" className="px-5 py-2 bg-yellow-500 hover:bg-yellow-400 text-gray-950 font-black text-xs rounded-xl uppercase tracking-wider shadow transition">Enviar Proposta</button>
+                <button type="button" onClick={() => setSelectedCarForPropose(null)} className="px-3 py-1.5 text-xs font-bold text-gray-400">Cancelar</button>
+                <button type="submit" className="px-5 py-2 bg-yellow-500 text-gray-950 font-black text-xs rounded-xl uppercase">Enviar Proposta</button>
               </div>
             </form>
           </div>
@@ -414,19 +511,8 @@ export default function Dashboard({
             <button onClick={() => setShowPaywall(false)} className="absolute top-4 right-4 text-gray-500 hover:text-white">✕</button>
             <div className="w-16 h-16 bg-yellow-500/10 border border-yellow-500/30 rounded-full flex items-center justify-center text-3xl mx-auto shadow-[0_0_15px_rgba(234,179,8,0.15)] mb-4">🔒</div>
             <h3 className="text-2xl font-black text-white tracking-tight">Recurso Premium</h3>
-            <p className="text-sm text-gray-400 mt-3 mb-6 leading-relaxed">
-              Para iniciares conversas e propores trocas no Mercado Global, desbloqueia o WheelTrack PRO. Utilizadores Free podem ler e responder a propostas recebidas.
-            </p>
-            <button 
-              onClick={() => alert("A redirecionar para pagamento Stripe...")}
-              className="w-full py-3.5 bg-gradient-to-r from-yellow-500 to-amber-600 hover:from-yellow-400 hover:to-amber-500 text-gray-950 font-black text-sm rounded-xl uppercase tracking-wider shadow-lg transition transform hover:scale-[1.02]"
-            >
-              Desbloquear por 2,99€ / Mês
-            </button>
-            <div className="mt-4 flex flex-col gap-2 text-[10px] text-gray-500 font-medium">
-              <span className="flex items-center justify-center gap-1">✔️ Cancela a qualquer momento</span>
-              <span className="flex items-center justify-center gap-1">✔️ Match instantâneo por Código Toy#</span>
-            </div>
+            <p className="text-sm text-gray-400 mt-3 mb-6 leading-relaxed">Para iniciares conversas, veres o cruzamento de dados e veres quem tem o carro que procuras, desbloqueia o WheelTrack PRO.</p>
+            <button onClick={() => alert("A redirecionar para pagamento Stripe...")} className="w-full py-3.5 bg-gradient-to-r from-yellow-500 to-amber-600 text-gray-950 font-black text-sm rounded-xl uppercase tracking-wider shadow transform hover:scale-[1.02]">Desbloquear por 2,99€ / Mês</button>
           </div>
         </div>
       )}

@@ -25,7 +25,8 @@ export default function VirtualDisplay() {
   // Estado dos Dados
   const [displaysList, setDisplaysList] = useState<any[]>([]);
   const [allMiniatures, setAllMiniatures] = useState<any[]>([]);
-  const [globalMarket, setGlobalMarket] = useState<any[]>([]); // NOVO ESTADO: Mercado Global
+  const [globalMarket, setGlobalMarket] = useState<any[]>([]);
+  const [wishlist, setWishlist] = useState<any[]>([]); // NOVO ESTADO: Lista de Desejos
   const [currentDisplay, setCurrentDisplay] = useState<any>(null);
   const [miniatures, setMiniatures] = useState<any[]>([]);
   
@@ -68,14 +69,23 @@ export default function VirtualDisplay() {
       const { data: allMiniaturesData } = await supabase.from('miniatures').select('*').eq('user_id', user.id);
       setAllMiniatures(allMiniaturesData || []);
 
-      // NOVO: Carrega TODOS os carros disponíveis para troca (Mercado Global)
+      // Carrega TODOS os carros disponíveis para troca (Mercado Global)
       const { data: marketData } = await supabase
         .from('miniatures')
         .select('*')
         .eq('is_for_trade', true)
-        .order('created_at', { ascending: false }); // Mostra os mais recentes primeiro
+        .order('created_at', { ascending: false });
         
       setGlobalMarket(marketData || []);
+
+      // NOVO: Carrega a Wishlist pessoal do utilizador logado
+      const { data: wishlistData } = await supabase
+        .from('wishlist')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false });
+
+      setWishlist(wishlistData || []);
 
     } catch (err: any) {
       console.error("Erro global:", err.message);
@@ -193,6 +203,29 @@ export default function VirtualDisplay() {
     }
   };
 
+  // NOVO: Adicionar carro à Wishlist no Supabase
+  const handleAddToWishlist = async (carName: string, series: string, toyCode: string) => {
+    if (!userId || !carName.trim()) return;
+    const { error } = await supabase.from('wishlist').insert([{
+      user_id: userId,
+      car_name: carName.trim(),
+      series: series.trim() || null,
+      toy_code: toyCode.trim() || null
+    }]);
+
+    if (error) alert("Erro ao adicionar desejo: " + error.message);
+    else await loadGlobalData();
+  };
+
+  // NOVO: Remover carro da Wishlist no Supabase
+  const handleRemoveFromWishlist = async (wishlistId: string) => {
+    if (!wishlistId) return;
+    const { error } = await supabase.from('wishlist').delete().eq('id', wishlistId);
+    
+    if (error) alert("Erro ao remover desejo: " + error.message);
+    else await loadGlobalData();
+  };
+
   if (loading) {
     return <div className="min-h-screen bg-gray-950 flex items-center justify-center text-white font-sans text-sm">A sincronizar a tua garagem...</div>;
   }
@@ -236,12 +269,16 @@ export default function VirtualDisplay() {
         <Dashboard 
           allMiniatures={allMiniatures}
           displaysList={displaysList}
-          globalMarket={globalMarket} // AQUI: Ligamos a pesquisa ao Dashboard!
+          globalMarket={globalMarket}
           subscriptionStatus={subscriptionStatus}
           onSelectDisplay={loadMiniatures}
           onDeleteDisplay={handleDeleteDisplay}
           onCreateNewClick={() => setShowCreationMenu(true)}
           onLogout={handleLogout}
+          // INJEÇÃO DAS NOVAS PROPRIEDADES DA WISHLIST:
+          wishlist={wishlist}
+          onAddToWishlist={handleAddToWishlist}
+          onRemoveFromWishlist={handleRemoveFromWishlist}
         />
       ) : (
         <GridExpositor 
