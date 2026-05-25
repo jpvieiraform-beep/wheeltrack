@@ -95,17 +95,18 @@ export default function Dashboard({
         ? 'http://127.0.0.1:54321' 
         : 'https://xmopkisvoxpnrorlexfz.supabase.co';
       
-      const response = await fetch(`${SUPABASE_PROJECT_URL}/functions/v1/smooth-function`, {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${supabase['supabaseAnonKey'] || ''}`
-        },
-        body: JSON.stringify({ 
-          userId: currentUserId, 
-          email: currentUserEmail 
-        })
-      });
+        const response = await fetch(`${SUPABASE_PROJECT_URL}/functions/v1/smooth-function`, {
+          method: 'POST',
+          headers: { 
+            'Content-Type': 'application/json',
+            // USAR A VARIÁVEL DO VITE DIRECTAMENTE EM VEZ DE PROPRIEDADE INTERNA
+            'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY || ''}`
+          },
+          body: JSON.stringify({ 
+            userId: currentUserId, 
+            email: currentUserEmail 
+          })
+        });
       
       const data = await response.json();
       if (data.url) {
