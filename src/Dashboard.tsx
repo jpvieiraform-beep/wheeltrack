@@ -21,7 +21,7 @@ export default function Dashboard({
   const [activeTab, setActiveTab] = useState<'expositores' | 'mercado' | 'trocas'>('expositores');
   const [showPaywall, setShowPaywall] = useState(false);
   
-  // Estados do Chat
+  // Estados do Chat e Identidades
   const [selectedCarForPropose, setSelectedCarForPropose] = useState<any>(null);
   const [initialMessage, setInitialMessage] = useState('');
   const [myChats, setMyChats] = useState<any[]>([]);
@@ -29,6 +29,9 @@ export default function Dashboard({
   const [chatMessages, setChatMessages] = useState<any[]>([]);
   const [replyText, setReplyText] = useState('');
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  
+  // Dicionário de Nomes: { "user_id": "Nome Real" }
+  const [userProfiles, setUserProfiles] = useState<Record<string, string>>({});
 
   useEffect(() => {
     async function getUserId() {
@@ -38,26 +41,38 @@ export default function Dashboard({
     getUserId();
   }, []);
 
+  // Busca nomes reais para quem está no Mercado ou nos Chats
+  useEffect(() => {
+    async function fetchIdentities() {
+      const uniqueIds = new Set<string>();
+      globalMarket.forEach(car => { if (car.user_id) uniqueIds.add(car.user_id); });
+      myChats.forEach(chat => { if (chat.userId) uniqueIds.add(chat.userId); });
+      
+      if (uniqueIds.size === 0) return;
+
+      const { data } = await supabase.from('user_profiles').select('id, full_name').in('id', Array.from(uniqueIds));
+      if (data) {
+        const map: Record<string, string> = {};
+        data.forEach(p => map[p.id] = p.full_name || 'Colecionador');
+        setUserProfiles(map);
+      }
+    }
+    fetchIdentities();
+  }, [globalMarket, myChats]);
+
   // Carregar conversas na Central de Matches
   useEffect(() => {
-    if (activeTab === 'trocas' && currentUserId) {
-      fetchMyChats();
-    }
+    if (activeTab === 'trocas' && currentUserId) fetchMyChats();
   }, [activeTab, currentUserId]);
 
-  // Carregar mensagens de um chat específico
+  // Canal de tempo real para o Chat
   useEffect(() => {
     if (activeChatUser && currentUserId) {
       fetchChatMessages(activeChatUser);
-      
-      // Canal em tempo real para receber novas mensagens instantaneamente
       const channel = supabase
-        .channel('schema-db-changes')
-        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, () => {
-          fetchChatMessages(activeChatUser);
-        })
+        .channel('chat')
+        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, () => fetchChatMessages(activeChatUser))
         .subscribe();
-
       return () => { supabase.removeChannel(channel); };
     }
   }, [activeChatUser, currentUserId]);
@@ -73,9 +88,7 @@ export default function Dashboard({
       const contactsMap: { [key: string]: any } = {};
       data.forEach(msg => {
         const otherId = msg.sender_id === currentUserId ? msg.receiver_id : msg.sender_id;
-        if (!contactsMap[otherId]) {
-          contactsMap[otherId] = { userId: otherId, lastMessage: msg.content, date: msg.created_at };
-        }
+        if (!contactsMap[otherId]) contactsMap[otherId] = { userId: otherId, lastMessage: msg.content, date: msg.created_at };
       });
       setMyChats(Object.values(contactsMap));
     }
@@ -87,7 +100,6 @@ export default function Dashboard({
       .select('*')
       .or(`and(sender_id.eq.${currentUserId},receiver_id.eq.${otherUserId}),and(sender_id.eq.${otherUserId},receiver_id.eq.${currentUserId})`)
       .order('created_at', { ascending: true });
-    
     if (data) setChatMessages(data);
   };
 
@@ -100,7 +112,7 @@ export default function Dashboard({
       setShowPaywall(true);
     } else {
       setSelectedCarForPropose(car);
-      setInitialMessage(`Olá! Vi o teu ${car.name} no Mercado Global e tenho interesse em negociar uma troca.`);
+      setInitialMessage(`Olá ${userProfiles[car.user_id] || ''}! Vi o teu ${car.name} no Mercado Global e tenho interesse em negociar uma troca.`);
     }
   };
 
@@ -272,7 +284,7 @@ export default function Dashboard({
                 <div className="p-3 flex flex-col flex-1">
                   <h4 className="text-sm font-bold text-white truncate">{car.name}</h4>
                   <span className="text-[10px] text-gray-400 mt-1">Série: {car.series || 'N/A'}</span>
-                  <span className="text-[10px] text-gray-500 mt-1 flex items-center gap-1">👤 Colecionador</span>
+                  <span className="text-[10px] text-yellow-500 font-bold mt-1 flex items-center gap-1">👤 {userProfiles[car.user_id] || 'Colecionador'}</span>
                   
                   <button 
                     onClick={() => handleProporTrocaClick(car)}
@@ -287,7 +299,7 @@ export default function Dashboard({
         </div>
       )}
 
-      {/* ABA: CENTRAL DE MATCHES / CHAT (AGORA ACESSÍVEL A AMBOS) */}
+      {/* ABA: CENTRAL DE MATCHES / CHAT */}
       {activeTab === 'trocas' && (
         <div className="bg-gray-900 border border-gray-800 rounded-2xl overflow-hidden h-[500px] flex shadow-xl animate-fade-in">
           {/* Barra Lateral: Lista de Contactos */}
@@ -306,7 +318,7 @@ export default function Dashboard({
                     className={`p-4 cursor-pointer transition text-left ${activeChatUser === chat.userId ? 'bg-gray-900' : 'hover:bg-gray-900/40'}`}
                   >
                     <div className="flex justify-between items-center">
-                      <span className="text-xs font-bold text-gray-200 truncate">Colecionador</span>
+                      <span className="text-xs font-bold text-yellow-500 truncate">{userProfiles[chat.userId] || 'Colecionador'}</span>
                       <span className="text-[9px] text-gray-500">{new Date(chat.date).toLocaleDateString()}</span>
                     </div>
                     <p className="text-xs text-gray-400 truncate mt-1">{chat.lastMessage}</p>
@@ -322,7 +334,9 @@ export default function Dashboard({
               <>
                 {/* Cabeçalho do Chat */}
                 <div className="p-4 border-b border-gray-800 bg-gray-950 text-left">
-                  <span className="text-xs font-black text-yellow-500 uppercase tracking-wide">Conversa Direta</span>
+                  <span className="text-xs font-black text-white uppercase tracking-wide">
+                    Conversa com <span className="text-yellow-500">{userProfiles[activeChatUser] || 'Colecionador'}</span>
+                  </span>
                 </div>
                 
                 {/* Balões de Mensagem */}
@@ -362,7 +376,7 @@ export default function Dashboard({
         </div>
       )}
 
-      {/* MODAL: MANDAR MENSAGEM INICIAL (SÓ PREMIUM CONSEGUE ABRIR) */}
+      {/* MODAL: MANDAR MENSAGEM INICIAL */}
       {selectedCarForPropose && (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-gray-900 border border-gray-800 p-6 rounded-2xl max-w-md w-full space-y-4 shadow-2xl text-left">
@@ -393,7 +407,7 @@ export default function Dashboard({
         </div>
       )}
 
-      {/* PAYWALL ATIVA (SÓ ABRE SE SHOWPAYWALL FOR TRUE) */}
+      {/* PAYWALL ATIVA */}
       {showPaywall && subscriptionStatus === 'free' && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in">
           <div className="relative w-full max-w-md bg-gray-900 border border-gray-700 p-8 rounded-3xl text-center shadow-[0_0_40px_rgba(0,0,0,0.8)]">
