@@ -99,7 +99,7 @@ export default function Dashboard({
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY || ''}`
+          'Authorization': `Bearer ${(supabase as any).supabaseAnonKey || (supabase as any).auth?.supabaseAnonKey || ''}`
         },
         body: JSON.stringify({ 
           userId: currentUserId, 
@@ -117,6 +117,36 @@ export default function Dashboard({
       console.error("Erro no Stripe Checkout:", err);
       alert("Erro de ligação ao servidor de pagamentos.");
     }
+  };
+
+  // Geração e download do relatório da coleção em formato CSV (Excel)
+  const handleExportCollection = () => {
+    if (allMiniatures.length === 0) {
+      alert("A tua coleção ainda não tem carrinhos para exportar! 🚗");
+      return;
+    }
+
+    const headers = ['Nome do Modelo', 'Série', 'Código Toy#', 'Raridade', 'Para Troca?', 'Data de Registo'];
+    
+    const rows = allMiniatures.map(car => [
+      `"${car.name?.replace(/"/g, '""') || ''}"`,
+      `"${car.series?.replace(/"/g, '""') || ''}"`,
+      `"${car.toy_code || ''}"`,
+      `"${car.rarity_type || 'Common'}"`,
+      car.is_for_trade ? 'SIM' : 'NAO',
+      new Date(car.created_at).toLocaleDateString('pt-PT')
+    ]);
+
+    const csvContent = [headers.join(';'), ...rows.map(e => e.join(';'))].join('\n');
+    const blob = new Blob([new Uint8Array([0xEF, 0xBB, 0xBF]), csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", `Minha_Colecao_WheelTrack_${new Date().toISOString().split('T')[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   const fetchMyChats = async () => {
@@ -289,6 +319,14 @@ export default function Dashboard({
         </div>
 
         <div className="flex items-center gap-3 self-end sm:self-auto">
+          {/* BOTÃO EXPORTAR COLECÇÃO */}
+          <button 
+            onClick={handleExportCollection} 
+            className="px-4 py-2.5 bg-gray-850 border border-gray-750 hover:bg-gray-800 text-gray-200 text-xs font-black rounded-lg uppercase tracking-wider shadow transition flex items-center gap-2"
+          >
+            📥 Exportar Lista
+          </button>
+
           <button onClick={onCreateNewClick} className="px-4 py-2.5 bg-yellow-500 text-gray-950 text-xs font-black rounded-lg uppercase tracking-wider shadow hover:bg-yellow-600 transition">
             + Novo Módulo
           </button>
@@ -392,7 +430,7 @@ export default function Dashboard({
               <h3 className="text-lg font-black text-white">Classificados da Comunidade</h3>
               <p className="text-xs text-gray-400 font-light mt-0.5">Miniaturas sinalizadas para troca por outros colecionadores.</p>
             </div>
-            <span className="text-xs bg-gray-800 text-gray-300 px-2 py-1 rounded font-bold">{globalMarket.length} disponíveis</span>
+            <span className="text-xs bg-gray-800 text-gray-300 px-2 py-1 rounded font-bold">{globalMarket.length} available</span>
           </div>
 
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
@@ -470,7 +508,7 @@ export default function Dashboard({
               <div className="p-4 border-b border-gray-800 text-left"><h3 className="text-xs font-black text-white uppercase tracking-wider">Conversas</h3></div>
               <div className="flex-1 overflow-y-auto divide-y divide-gray-900">
                 {myChats.length === 0 ? (
-                  <div className="p-4 text-xs text-gray-500 text-center mt-10">Nenhuma conversa ativa.</div>
+                  <div className="p-4 text-xs text-gray-500 text-center mt-10">Nenhuma conversa activa.</div>
                 ) : (
                   myChats.map((chat) => (
                     <div key={chat.userId} onClick={() => setActiveChatUser(chat.userId)} className={`p-4 cursor-pointer transition text-left ${activeChatUser === chat.userId ? 'bg-gray-900' : 'hover:bg-gray-900/40'}`}>
