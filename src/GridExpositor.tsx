@@ -116,7 +116,7 @@ export default function GridExpositor({
                           </p>
                         </div>
                       ) : (
-                        !isViewingPublic && <span className="text-[8px] text-sky-800 font-black">+</span />
+                        !isViewingPublic && <span className="text-[8px] text-sky-800 font-black">+</span >
                       )}
                     </div>
                   );
