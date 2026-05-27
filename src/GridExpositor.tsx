@@ -1,5 +1,3 @@
-import { MouseEvent } from 'react';
-
 interface GridExpositorProps {
   currentDisplay: any;
   miniatures: any[];
