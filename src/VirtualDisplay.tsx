@@ -26,7 +26,7 @@ export default function VirtualDisplay() {
   const [displaysList, setDisplaysList] = useState<any[]>([]);
   const [allMiniatures, setAllMiniatures] = useState<any[]>([]);
   const [globalMarket, setGlobalMarket] = useState<any[]>([]);
-  const [wishlist, setWishlist] = useState<any[]>([]); // NOVO ESTADO: Lista de Desejos
+  const [wishlist, setWishlist] = useState<any[]>([]);
   const [currentDisplay, setCurrentDisplay] = useState<any>(null);
   const [miniatures, setMiniatures] = useState<any[]>([]);
   
@@ -37,6 +37,7 @@ export default function VirtualDisplay() {
   
   // Estado do Menu de Criação
   const [showCreationMenu, setShowCreationMenu] = useState(false);
+  const [displayType, setDisplayType] = useState<'expositor' | 'caixa'>('expositor'); // NOVO: Tipo de Arrumação
   const [customDisplayName, setCustomDisplayName] = useState('');
   const [tempLocations, setTempLocations] = useState<{ [key: string]: string }>({});
 
@@ -52,7 +53,6 @@ export default function VirtualDisplay() {
       if (!user) return;
       setUserId(user.id);
 
-      // Carrega o Perfil (Free/Premium)
       const { data: profileData } = await supabase
         .from('user_profiles')
         .select('subscription_status')
@@ -61,15 +61,12 @@ export default function VirtualDisplay() {
       
       setSubscriptionStatus(profileData?.subscription_status as 'free' | 'premium' || 'free');
 
-      // Carrega os Expositores do Utilizador
       const { data: displaysData } = await supabase.from('displays').select('*').eq('user_id', user.id);
       setDisplaysList(displaysData || []);
 
-      // Carrega os Carros do Utilizador
       const { data: allMiniaturesData } = await supabase.from('miniatures').select('*').eq('user_id', user.id);
       setAllMiniatures(allMiniaturesData || []);
 
-      // Carrega TODOS os carros disponíveis para troca (Mercado Global)
       const { data: marketData } = await supabase
         .from('miniatures')
         .select('*')
@@ -78,7 +75,6 @@ export default function VirtualDisplay() {
         
       setGlobalMarket(marketData || []);
 
-      // NOVO: Carrega a Wishlist pessoal do utilizador logado
       const { data: wishlistData } = await supabase
         .from('wishlist')
         .select('*')
@@ -123,6 +119,7 @@ export default function VirtualDisplay() {
     window.location.reload(); 
   }
 
+  // Criar Expositor Físico
   const handleCreateDisplay = async (preset: typeof PRESET_MODELS[0]) => {
     if (!userId) return;
     const chosenLocation = tempLocations[preset.id] || 'Garagem';
@@ -142,6 +139,28 @@ export default function VirtualDisplay() {
     setCustomDisplayName('');
     setTempLocations({});
     setShowCreationMenu(false);
+    await loadGlobalData();
+  };
+
+  // Criar Caixa de Arrumação
+  const handleCreateBox = async () => {
+    if (!userId) return;
+    const baseName = customDisplayName.trim() || 'Nova Caixa';
+    const finalName = `[CAIXA] ${baseName}`; // O Prefix [CAIXA] avisa o Dashboard para aplicar o design de caixa
+
+    setLoading(true);
+    const { error } = await supabase.from('displays').insert([{
+      user_id: userId,
+      name: finalName,
+      model_type: 'Box_Storage',
+      rows_count: 1, // Visualmente é ignorado no Dashboard
+      columns_count: 500 // Capacidade massiva para caixas virtuais
+    }]);
+
+    if (error) alert("Erro ao criar caixa: " + error.message);
+    setCustomDisplayName('');
+    setShowCreationMenu(false);
+    setDisplayType('expositor'); // Reset visual
     await loadGlobalData();
   };
 
@@ -203,7 +222,6 @@ export default function VirtualDisplay() {
     }
   };
 
-  // NOVO: Adicionar carro à Wishlist no Supabase
   const handleAddToWishlist = async (carName: string, series: string, toyCode: string) => {
     if (!userId || !carName.trim()) return;
     const { error } = await supabase.from('wishlist').insert([{
@@ -217,7 +235,6 @@ export default function VirtualDisplay() {
     else await loadGlobalData();
   };
 
-  // NOVO: Remover carro da Wishlist no Supabase
   const handleRemoveFromWishlist = async (wishlistId: string) => {
     if (!wishlistId) return;
     const { error } = await supabase.from('wishlist').delete().eq('id', wishlistId);
@@ -230,35 +247,93 @@ export default function VirtualDisplay() {
     return <div className="min-h-screen bg-gray-950 flex items-center justify-center text-white font-sans text-sm">A sincronizar a tua garagem...</div>;
   }
 
+  // MENU DE CRIAÇÃO (Expositor Físico OU Caixa Solta)
   if (showCreationMenu || displaysList.length === 0) {
     return (
       <div className="min-h-screen bg-gray-950 text-white p-6 flex flex-col items-center justify-center font-sans">
-        <div className="max-w-2xl w-full text-center mb-8 border-b border-gray-800 pb-6 space-y-4">
-          <h2 className="text-3xl font-extrabold text-gray-100 tracking-tighter">Sincronizar Novo Módulo</h2>
-          <input type="text" value={customDisplayName} onChange={(e) => setCustomDisplayName(e.target.value)} placeholder="Identificador opcional (ex: Prateleira de Cima)..." className="max-w-md w-full bg-gray-900 border border-gray-700 rounded-xl p-3 text-white text-center text-sm focus:outline-none" />
+        <div className="max-w-2xl w-full text-center mb-8 border-b border-gray-800 pb-6 space-y-6">
+          <h2 className="text-3xl font-extrabold text-gray-100 tracking-tighter">Sincronizar Nova Arrumação</h2>
+          
+          {/* Botões de Seleção de Tipo */}
+          <div className="flex justify-center gap-3">
+            <button
+              onClick={() => setDisplayType('expositor')}
+              className={`px-6 py-2.5 rounded-lg text-xs font-black uppercase tracking-wider transition ${displayType === 'expositor' ? 'bg-yellow-500 text-gray-950 shadow-md' : 'bg-gray-900 border border-gray-800 text-gray-500 hover:text-gray-300'}`}
+            >
+              🔲 Expositor de Parede
+            </button>
+            <button
+              onClick={() => setDisplayType('caixa')}
+              className={`px-6 py-2.5 rounded-lg text-xs font-black uppercase tracking-wider transition ${displayType === 'caixa' ? 'bg-amber-600 text-gray-950 shadow-md' : 'bg-gray-900 border border-gray-800 text-gray-500 hover:text-gray-300'}`}
+            >
+              📦 Caixa de Arrumação
+            </button>
+          </div>
         </div>
-        <div className="max-w-5xl w-full grid md:grid-cols-3 gap-4 overflow-y-auto max-h-[50vh] pr-2">
-          {PRESET_MODELS.map((preset) => (
-            <div key={preset.id} className="bg-gray-900 border border-gray-800 p-5 rounded-xl flex flex-col justify-between hover:border-yellow-500 transition space-y-4">
-              <div className="flex gap-3 items-start">
-                <span className="text-2xl bg-gray-950 p-2 rounded-lg">{preset.icon}</span>
-                <div>
-                  <h3 className="text-sm font-bold text-gray-100">{preset.name}</h3>
-                  <p className="text-[10px] text-gray-500 font-mono">{preset.rows}L × {preset.cols}C</p>
+
+        {/* MODO: EXPOSITOR FÍSICO */}
+        {displayType === 'expositor' ? (
+          <div className="max-w-5xl w-full flex flex-col items-center">
+            <input type="text" value={customDisplayName} onChange={(e) => setCustomDisplayName(e.target.value)} placeholder="Identificador opcional (ex: Prateleira de Cima)..." className="max-w-md w-full bg-gray-900 border border-gray-700 rounded-xl p-3 text-white text-center text-sm focus:outline-none focus:border-yellow-500 mb-6" />
+            <div className="w-full grid md:grid-cols-3 gap-4 overflow-y-auto max-h-[50vh] pr-2">
+              {PRESET_MODELS.map((preset) => (
+                <div key={preset.id} className="bg-gray-900 border border-gray-800 p-5 rounded-xl flex flex-col justify-between hover:border-yellow-500 transition space-y-4">
+                  <div className="flex gap-3 items-start">
+                    <span className="text-2xl bg-gray-950 p-2 rounded-lg">{preset.icon}</span>
+                    <div>
+                      <h3 className="text-sm font-bold text-gray-100">{preset.name}</h3>
+                      <p className="text-[10px] text-gray-500 font-mono">{preset.rows}L × {preset.cols}C</p>
+                    </div>
+                  </div>
+                  <select value={tempLocations[preset.id] || 'Garagem'} onChange={(e) => setTempLocations({...tempLocations, [preset.id]: e.target.value})} className="w-full bg-gray-950 border border-gray-700 rounded-lg p-2 text-white text-xs focus:border-yellow-500 focus:outline-none">
+                    <option value="Garagem">Garagem 🚗</option>
+                    <option value="Quarto">Quarto 🛏️</option>
+                    <option value="Corredor">Corredor 🧱</option>
+                    <option value="Sala de Estar">Sala de Estar 📺</option>
+                    <option value="Escritório">Escritório 💼</option>
+                  </select>
+                  <button onClick={() => handleCreateDisplay(preset)} className="w-full py-2 bg-yellow-500 hover:bg-yellow-400 text-gray-950 text-xs font-black rounded-lg uppercase transition">Montar</button>
                 </div>
-              </div>
-              <select value={tempLocations[preset.id] || 'Garagem'} onChange={(e) => setTempLocations({...tempLocations, [preset.id]: e.target.value})} className="w-full bg-gray-950 border border-gray-700 rounded-lg p-2 text-white text-xs">
-                <option value="Garagem">Garagem 🚗</option>
-                <option value="Quarto">Quarto 🛏️</option>
-                <option value="Corredor">Corredor 🧱</option>
-                <option value="Sala de Estar">Sala de Estar 📺</option>
-                <option value="Escritório">Escritório 💼</option>
-              </select>
-              <button onClick={() => handleCreateDisplay(preset)} className="w-full py-2 bg-yellow-500 text-gray-950 text-xs font-black rounded-lg uppercase">Montar</button>
+              ))}
             </div>
-          ))}
-        </div>
-        {displaysList.length > 0 && <button onClick={() => setShowCreationMenu(false)} className="mt-4 text-xs text-gray-500 underline">Cancelar e Voltar</button>}
+          </div>
+        ) : (
+          /* MODO: CAIXA SOLTA / STOCK */
+          <div className="max-w-md w-full bg-amber-950/20 border-2 border-dashed border-amber-800/50 p-8 rounded-2xl text-center space-y-6 animate-fade-in shadow-xl">
+            <div className="text-5xl">📦</div>
+            <div>
+              <h3 className="text-xl font-bold text-amber-500 mb-2">Caixa de Arrumação / Stock</h3>
+              <p className="text-xs text-gray-400">Ideal para carrinhos não expostos ou caixas de trocas. Adiciona modelos organizados por caixas sem limite de vagas.</p>
+            </div>
+            
+            <input 
+              type="text" 
+              value={customDisplayName} 
+              onChange={(e) => setCustomDisplayName(e.target.value)} 
+              placeholder="Nome da Caixa (ex: Repetidos / Feira)..." 
+              className="w-full bg-gray-950 border border-gray-700 rounded-xl p-3 text-white text-center text-sm focus:outline-none focus:border-amber-500 transition" 
+            />
+            
+            <button 
+              onClick={handleCreateBox} 
+              className="w-full py-3.5 bg-amber-600 hover:bg-amber-500 text-gray-950 text-xs font-black rounded-xl uppercase tracking-wider shadow transition"
+            >
+              Criar Caixa
+            </button>
+          </div>
+        )}
+
+        {displaysList.length > 0 && (
+          <button 
+            onClick={() => {
+              setShowCreationMenu(false);
+              setCustomDisplayName('');
+            }} 
+            className="mt-6 text-xs text-gray-500 hover:text-white underline transition"
+          >
+            Cancelar e Voltar
+          </button>
+        )}
       </div>
     );
   }
@@ -273,9 +348,11 @@ export default function VirtualDisplay() {
           subscriptionStatus={subscriptionStatus}
           onSelectDisplay={loadMiniatures}
           onDeleteDisplay={handleDeleteDisplay}
-          onCreateNewClick={() => setShowCreationMenu(true)}
+          onCreateNewClick={() => {
+            setDisplayType('expositor'); // Garante que abre por defeito nos expositores
+            setShowCreationMenu(true);
+          }}
           onLogout={handleLogout}
-          // INJEÇÃO DAS NOVAS PROPRIEDADES DA WISHLIST:
           wishlist={wishlist}
           onAddToWishlist={handleAddToWishlist}
           onRemoveFromWishlist={handleRemoveFromWishlist}

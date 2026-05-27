@@ -357,21 +357,45 @@ export default function Dashboard({
               <span className="text-2xl font-black text-blue-400">{allMiniatures.filter(m => m.is_for_trade).length}</span>
             </div>
           </div>
+          
           <div className="space-y-6 pt-2">
-            {Object.keys(groupedDisplaysByRoom).map((roomName) => (
-              <div key={roomName} className="space-y-3 bg-gray-900/40 p-4 rounded-2xl border border-gray-800/50">
-                <h3 className="text-xs font-black text-gray-400 tracking-wider uppercase border-b border-gray-800 pb-1">📍 {roomName}</h3>
-                <div className="grid sm:grid-cols-3 gap-4">
-                  {groupedDisplaysByRoom[roomName].map((disp: any) => (
-                    <div key={disp.id} onClick={() => onSelectDisplay(disp)} className="bg-gray-900 border border-gray-800 p-5 rounded-xl cursor-pointer hover:border-yellow-500 transition relative group shadow">
-                      <button onClick={(e) => onDeleteDisplay(e, disp.id, disp.name)} className="absolute top-3 right-3 text-gray-600 hover:text-red-500 opacity-0 group-hover:opacity-100 transition">🗑️</button>
-                      <h4 className="text-base font-bold text-gray-200">{cleanDisplayName(disp.name)}</h4>
-                      <span className="text-[10px] text-gray-400 bg-gray-950 px-2 py-0.5 rounded font-mono mt-2 inline-block">{disp.rows_count}×{disp.columns_count} Vagas</span>
-                    </div>
-                  ))}
+            {Object.keys(groupedDisplaysByRoom).map((roomName) => {
+              // Deteta automaticamente se este grupo é de Caixas Soltas
+              const isBox = roomName.toUpperCase() === 'CAIXA';
+              
+              return (
+                <div key={roomName} className={`space-y-3 p-4 rounded-2xl border ${isBox ? 'bg-amber-950/10 border-amber-900/30' : 'bg-gray-900/40 border-gray-800/50'}`}>
+                  <h3 className={`text-xs font-black tracking-wider uppercase border-b pb-1 ${isBox ? 'text-amber-500 border-amber-900/50' : 'text-gray-400 border-gray-800'}`}>
+                    {isBox ? '📦 Caixas de Arrumação / Stock' : `📍 ${roomName}`}
+                  </h3>
+                  
+                  <div className="grid sm:grid-cols-3 gap-4">
+                    {groupedDisplaysByRoom[roomName].map((disp: any) => (
+                      <div 
+                        key={disp.id} 
+                        onClick={() => onSelectDisplay(disp)} 
+                        className={`p-5 rounded-xl cursor-pointer transition relative group shadow ${
+                          isBox 
+                            ? 'bg-amber-950/20 border-dashed border-2 border-amber-800/50 hover:border-amber-500' 
+                            : 'bg-gray-900 border border-gray-800 hover:border-yellow-500'
+                        }`}
+                      >
+                        <button onClick={(e) => onDeleteDisplay(e, disp.id, disp.name)} className="absolute top-3 right-3 text-gray-600 hover:text-red-500 opacity-0 group-hover:opacity-100 transition">🗑️</button>
+                        
+                        <h4 className="text-base font-bold text-gray-200">
+                          {isBox ? '📦 ' : '🔲 '}
+                          {cleanDisplayName(disp.name)}
+                        </h4>
+                        
+                        <span className={`text-[10px] px-2 py-0.5 rounded font-mono mt-2 inline-block ${isBox ? 'bg-amber-900/40 text-amber-400' : 'bg-gray-950 text-gray-400'}`}>
+                          {isBox ? 'Capacidade Livre' : `${disp.rows_count}×${disp.columns_count} Vagas`}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </>
       )}
