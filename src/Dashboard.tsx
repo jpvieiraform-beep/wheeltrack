@@ -16,6 +16,7 @@ interface DashboardProps {
   wishlist: any[];
   onAddToWishlist: (carName: string, series: string, toyCode: string) => Promise<void>;
   onRemoveFromWishlist: (wishlistId: string) => Promise<void>;
+  isViewingPublic?: boolean;
 }
 
 export default function Dashboard({
