@@ -134,11 +134,15 @@ export default function MiniatureFormModal({ isOpen, onClose, onSaveComplete, di
           await supabase.from('miniature_photos').insert(bulkPhotos);
         }
       } else {
+        // CORREÇÃO AQUI: Se não há slot (é uma caixa solta), gera coordenadas virtuais únicas altíssimas
+        const finalRow = slot?.row || Math.floor(Math.random() * 900000) + 1000;
+        const finalCol = slot?.col || Math.floor(Math.random() * 900000) + 1000;
+
         const { error: insertError } = await supabase.from('miniatures').insert([{
           user_id: user.id,
           display_id: displayId,
-          display_row: slot?.row || 0,
-          display_column: slot?.col || 0,
+          display_row: finalRow,
+          display_column: finalCol,
           ...payload
         }]);
         if (insertError) throw insertError;
