@@ -1,4 +1,4 @@
-import React from 'react';
+import { MouseEvent } from 'react';
 
 interface GridExpositorProps {
   currentDisplay: any;
