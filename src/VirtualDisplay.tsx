@@ -16,10 +16,14 @@ export const PRESET_MODELS = [
   { id: 'blister_gr', name: 'Expositor Blister GR (1:64)', rows: 30, cols: 7, type: 'Blister', icon: '🎪', color: 'text-cyan-400', description: 'Grande formato profissional com 7 calhas de alta capacidade.' }
 ];
 
-export default function VirtualDisplay() {
+interface VirtualDisplayProps {
+  targetUserId: string;
+  isViewingPublic: boolean;
+}
+
+export default function VirtualDisplay({ targetUserId, isViewingPublic }: VirtualDisplayProps) {
   // Estado Global
   const [loading, setLoading] = useState(true);
-  const [userId, setUserId] = useState<string | null>(null);
   const [subscriptionStatus, setSubscriptionStatus] = useState<'free' | 'premium'>('free');
   
   // Estado dos Dados
@@ -37,7 +41,7 @@ export default function VirtualDisplay() {
   
   // Estado do Menu de Criação
   const [showCreationMenu, setShowCreationMenu] = useState(false);
-  const [displayType, setDisplayType] = useState<'expositor' | 'caixa'>('expositor'); // NOVO: Tipo de Arrumação
+  const [displayType, setDisplayType] = useState<'expositor' | 'caixa'>('expositor');
   const [customDisplayName, setCustomDisplayName] = useState('');
   const [tempLocations, setTempLocations] = useState<{ [key: string]: string }>({});
 
@@ -45,26 +49,27 @@ export default function VirtualDisplay() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
 
-  // --- FUNÇÕES DE CARREGAMENTO ---
+  // --- FUNÇÕES DE CARREGAMENTO MODIFICADAS PARA O MODO SOCIAL ---
   async function loadGlobalData() {
     try {
       setLoading(true);
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-      setUserId(user.id);
+      if (!targetUserId) return;
 
+      // Busca o status de subscrição do dono da garagem que estamos a ver
       const { data: profileData } = await supabase
         .from('user_profiles')
         .select('subscription_status')
-        .eq('id', user.id)
+        .eq('id', targetUserId)
         .maybeSingle();
       
       setSubscriptionStatus(profileData?.subscription_status as 'free' | 'premium' || 'free');
 
-      const { data: displaysData } = await supabase.from('displays').select('*').eq('user_id', user.id);
+      // Filtra os expositores pelo ID do alvo (meu ou do outro utilizador)
+      const { data: displaysData } = await supabase.from('displays').select('*').eq('user_id', targetUserId);
       setDisplaysList(displaysData || []);
 
-      const { data: allMiniaturesData } = await supabase.from('miniatures').select('*').eq('user_id', user.id);
+      // Filtra as miniaturas pelo ID do alvo
+      const { data: allMiniaturesData } = await supabase.from('miniatures').select('*').eq('user_id', targetUserId);
       setAllMiniatures(allMiniaturesData || []);
 
       const { data: marketData } = await supabase
@@ -78,7 +83,7 @@ export default function VirtualDisplay() {
       const { data: wishlistData } = await supabase
         .from('wishlist')
         .select('*')
-        .eq('user_id', user.id)
+        .eq('user_id', targetUserId)
         .order('created_at', { ascending: false });
 
       setWishlist(wishlistData || []);
@@ -92,7 +97,11 @@ export default function VirtualDisplay() {
 
   async function loadMiniatures(display: any) {
     setCurrentDisplay(display);
-    const { data: minData } = await supabase.from('miniatures').select('*').eq('display_id', display.id);
+    const { data: minData } = await supabase
+      .from('miniatures')
+      .select('*')
+      .eq('display_id', display.id)
+      .eq('user_id', targetUserId); // Segurança acrescida no filtro social
     setMiniatures(minData || []);
     setSelectedSlot(null);
     setMovingCar(null);
@@ -111,7 +120,7 @@ export default function VirtualDisplay() {
 
   useEffect(() => {
     loadGlobalData();
-  }, []);
+  }, [targetUserId]);
 
   // --- FUNÇÕES DE AÇÃO (SUPABASE) ---
   async function handleLogout() {
@@ -121,14 +130,14 @@ export default function VirtualDisplay() {
 
   // Criar Expositor Físico
   const handleCreateDisplay = async (preset: typeof PRESET_MODELS[0]) => {
-    if (!userId) return;
+    if (isViewingPublic || !targetUserId) return;
     const chosenLocation = tempLocations[preset.id] || 'Garagem';
     const baseName = customDisplayName.trim() || preset.name;
     const finalName = `[${chosenLocation}] ${baseName}`;
 
     setLoading(true);
     const { error } = await supabase.from('displays').insert([{
-      user_id: userId, 
+      user_id: targetUserId, 
       name: finalName,
       model_type: preset.id,
       rows_count: preset.rows,
@@ -144,28 +153,29 @@ export default function VirtualDisplay() {
 
   // Criar Caixa de Arrumação
   const handleCreateBox = async () => {
-    if (!userId) return;
+    if (isViewingPublic || !targetUserId) return;
     const baseName = customDisplayName.trim() || 'Nova Caixa';
-    const finalName = `[CAIXA] ${baseName}`; // O Prefix [CAIXA] avisa o Dashboard para aplicar o design de caixa
+    const finalName = `[CAIXA] ${baseName}`;
 
     setLoading(true);
     const { error } = await supabase.from('displays').insert([{
-      user_id: userId,
+      user_id: targetUserId,
       name: finalName,
       model_type: 'Box_Storage',
-      rows_count: 1, // Visualmente é ignorado no Dashboard
-      columns_count: 500 // Capacidade massiva para caixas virtuais
+      rows_count: 1,
+      columns_count: 500
     }]);
 
     if (error) alert("Erro ao criar caixa: " + error.message);
     setCustomDisplayName('');
     setShowCreationMenu(false);
-    setDisplayType('expositor'); // Reset visual
+    setDisplayType('expositor');
     await loadGlobalData();
   };
 
   const handleDeleteDisplay = async (e: React.MouseEvent, displayId: string, displayName: string) => {
     e.stopPropagation();
+    if (isViewingPublic) return;
     if (!confirm(`Eliminar expositor "${displayName}" permanentemente?`)) return;
     setLoading(true);
     const { error } = await supabase.from('displays').delete().eq('id', displayId);
@@ -179,7 +189,7 @@ export default function VirtualDisplay() {
   };
 
   const handleDeleteCar = async (car: any) => {
-    if (!car || !car.id) return;
+    if (isViewingPublic || !car || !car.id) return;
     if (!confirm(`Remover "${car.name}" permanentemente?`)) return;
     const { error } = await supabase.from('miniatures').delete().eq('id', car.id);
     if (!error) {
@@ -190,7 +200,7 @@ export default function VirtualDisplay() {
   };
 
   const handleMoveCarExecution = async (targetRow: number, targetCol: number) => {
-    if (!movingCar) return;
+    if (isViewingPublic || !movingCar) return;
     const { error } = await supabase.from('miniatures').update({ display_row: targetRow, display_column: targetCol }).eq('id', movingCar.id);
     if (!error) {
       setMiniatures(miniatures.map(m => m.id === movingCar.id ? { ...m, display_row: targetRow, display_column: targetCol } : m));
@@ -201,6 +211,7 @@ export default function VirtualDisplay() {
   };
 
   const handleToggleTrade = async (miniature: any, currentTradeStatus: boolean) => {
+    if (isViewingPublic) return;
     const novoEstado = !currentTradeStatus;
     const { error } = await supabase.from('miniatures').update({ is_for_trade: novoEstado }).eq('id', miniature.id);
     if (!error) {
@@ -214,8 +225,11 @@ export default function VirtualDisplay() {
 
   const handleSlotClick = async (row: number, col: number, miniature: any) => {
     if (movingCar) {
-      if (!miniature) handleMoveCarExecution(row, col); 
+      if (!miniature && !isViewingPublic) handleMoveCarExecution(row, col); 
     } else {
+      // Impede abertura de slots vazios em modo de visualização pública
+      if (isViewingPublic && !miniature) return;
+
       setSelectedSlot({ row, col, miniature, allPhotos: miniature?.photo_url ? [miniature.photo_url] : [] });
       setActiveGalleryUrl(miniature?.photo_url || null);
       if (miniature) await loadSelectedSlotPhotos(miniature);
@@ -223,9 +237,9 @@ export default function VirtualDisplay() {
   };
 
   const handleAddToWishlist = async (carName: string, series: string, toyCode: string) => {
-    if (!userId || !carName.trim()) return;
+    if (isViewingPublic || !targetUserId || !carName.trim()) return;
     const { error } = await supabase.from('wishlist').insert([{
-      user_id: userId,
+      user_id: targetUserId,
       car_name: carName.trim(),
       series: series.trim() || null,
       toy_code: toyCode.trim() || null
@@ -236,7 +250,7 @@ export default function VirtualDisplay() {
   };
 
   const handleRemoveFromWishlist = async (wishlistId: string) => {
-    if (!wishlistId) return;
+    if (isViewingPublic || !wishlistId) return;
     const { error } = await supabase.from('wishlist').delete().eq('id', wishlistId);
     
     if (error) alert("Erro ao remover desejo: " + error.message);
@@ -244,17 +258,16 @@ export default function VirtualDisplay() {
   };
 
   if (loading) {
-    return <div className="min-h-screen bg-gray-950 flex items-center justify-center text-white font-sans text-sm">A sincronizar a tua garagem...</div>;
+    return <div className="min-h-screen bg-gray-950 flex items-center justify-center text-white font-sans text-sm">A sincronizar a garagem...</div>;
   }
 
-  // MENU DE CRIAÇÃO (Expositor Físico OU Caixa Solta)
-  if (showCreationMenu || displaysList.length === 0) {
+  // MENU DE CRIAÇÃO (Trancado se for visualização pública)
+  if ((showCreationMenu || displaysList.length === 0) && !isViewingPublic) {
     return (
       <div className="min-h-screen bg-gray-950 text-white p-6 flex flex-col items-center justify-center font-sans">
         <div className="max-w-2xl w-full text-center mb-8 border-b border-gray-800 pb-6 space-y-6">
           <h2 className="text-3xl font-extrabold text-gray-100 tracking-tighter">Sincronizar Nova Arrumação</h2>
           
-          {/* Botões de Seleção de Tipo */}
           <div className="flex justify-center gap-3">
             <button
               onClick={() => setDisplayType('expositor')}
@@ -271,7 +284,6 @@ export default function VirtualDisplay() {
           </div>
         </div>
 
-        {/* MODO: EXPOSITOR FÍSICO */}
         {displayType === 'expositor' ? (
           <div className="max-w-5xl w-full flex flex-col items-center">
             <input type="text" value={customDisplayName} onChange={(e) => setCustomDisplayName(e.target.value)} placeholder="Identificador opcional (ex: Prateleira de Cima)..." className="max-w-md w-full bg-gray-900 border border-gray-700 rounded-xl p-3 text-white text-center text-sm focus:outline-none focus:border-yellow-500 mb-6" />
@@ -298,41 +310,19 @@ export default function VirtualDisplay() {
             </div>
           </div>
         ) : (
-          /* MODO: CAIXA SOLTA / STOCK */
-          <div className="max-w-md w-full bg-amber-950/20 border-2 border-dashed border-amber-800/50 p-8 rounded-2xl text-center space-y-6 animate-fade-in shadow-xl">
+          <div className="max-w-md w-full bg-amber-950/20 border-2 border-dashed border-amber-800/50 p-8 rounded-2xl text-center space-y-6 shadow-xl">
             <div className="text-5xl">📦</div>
             <div>
               <h3 className="text-xl font-bold text-amber-500 mb-2">Caixa de Arrumação / Stock</h3>
               <p className="text-xs text-gray-400">Ideal para carrinhos não expostos ou caixas de trocas. Adiciona modelos organizados por caixas sem limite de vagas.</p>
             </div>
-            
-            <input 
-              type="text" 
-              value={customDisplayName} 
-              onChange={(e) => setCustomDisplayName(e.target.value)} 
-              placeholder="Nome da Caixa (ex: Repetidos / Feira)..." 
-              className="w-full bg-gray-950 border border-gray-700 rounded-xl p-3 text-white text-center text-sm focus:outline-none focus:border-amber-500 transition" 
-            />
-            
-            <button 
-              onClick={handleCreateBox} 
-              className="w-full py-3.5 bg-amber-600 hover:bg-amber-500 text-gray-950 text-xs font-black rounded-xl uppercase tracking-wider shadow transition"
-            >
-              Criar Caixa
-            </button>
+            <input type="text" value={customDisplayName} onChange={(e) => setCustomDisplayName(e.target.value)} placeholder="Nome da Caixa (ex: Repetidos / Feira)..." className="w-full bg-gray-950 border border-gray-700 rounded-xl p-3 text-white text-center text-sm focus:outline-none focus:border-amber-500 transition" />
+            <button onClick={handleCreateBox} className="w-full py-3.5 bg-amber-600 hover:bg-amber-500 text-gray-950 text-xs font-black rounded-xl uppercase tracking-wider shadow transition">Criar Caixa</button>
           </div>
         )}
 
         {displaysList.length > 0 && (
-          <button 
-            onClick={() => {
-              setShowCreationMenu(false);
-              setCustomDisplayName('');
-            }} 
-            className="mt-6 text-xs text-gray-500 hover:text-white underline transition"
-          >
-            Cancelar e Voltar
-          </button>
+          <button onClick={() => { setShowCreationMenu(false); setCustomDisplayName(''); }} className="mt-6 text-xs text-gray-500 hover:text-white underline transition">Cancelar e Voltar</button>
         )}
       </div>
     );
@@ -349,13 +339,15 @@ export default function VirtualDisplay() {
           onSelectDisplay={loadMiniatures}
           onDeleteDisplay={handleDeleteDisplay}
           onCreateNewClick={() => {
-            setDisplayType('expositor'); // Garante que abre por defeito nos expositores
+            if (isViewingPublic) return;
+            setDisplayType('expositor');
             setShowCreationMenu(true);
           }}
           onLogout={handleLogout}
           wishlist={wishlist}
           onAddToWishlist={handleAddToWishlist}
           onRemoveFromWishlist={handleRemoveFromWishlist}
+          isViewingPublic={isViewingPublic} // Nova flag passada para o Dashboard se necessário
         />
       ) : (
         <GridExpositor 
@@ -369,24 +361,27 @@ export default function VirtualDisplay() {
           onCancelMove={() => setMovingCar(null)}
           onStartMove={(miniature: any) => setMovingCar(miniature)}
           onToggleTrade={handleToggleTrade}
-          onEdit={() => { setIsEditing(true); setIsModalOpen(true); }}
-          onCreate={() => { setIsEditing(false); setIsModalOpen(true); }}
+          onEdit={() => { if (!isViewingPublic) { setIsEditing(true); setIsModalOpen(true); } }}
+          onCreate={() => { if (!isViewingPublic) { setIsEditing(false); setIsModalOpen(true); } }}
           onDelete={handleDeleteCar}
+          isViewingPublic={isViewingPublic} // Proteção para esconder ações na grelha
         />
       )}
 
-      <MiniatureFormModal 
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        onSaveComplete={async () => {
-          setIsModalOpen(false);
-          await loadMiniatures(currentDisplay);
-          await loadGlobalData();
-        }}
-        displayId={currentDisplay?.id}
-        slot={selectedSlot}
-        existingCar={isEditing ? selectedSlot?.miniature : null}
-      />
+      {currentDisplay && (
+        <MiniatureFormModal 
+          isOpen={isModalOpen}
+          onClose={() => setIsModalOpen(false)}
+          onSaveComplete={async () => {
+            setIsModalOpen(false);
+            await loadMiniatures(currentDisplay);
+            await loadGlobalData();
+          }}
+          displayId={currentDisplay?.id}
+          slot={selectedSlot}
+          existingCar={isEditing || isViewingPublic ? selectedSlot?.miniature : null}
+        />
+      )}
     </div>
   );
 }
