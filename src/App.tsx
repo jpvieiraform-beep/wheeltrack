@@ -254,7 +254,7 @@ function GaragemContainer({ session }: { session: any }) {
           globalMarket={globalMarket}
           subscriptionStatus={subStatus}
           onSelectDisplay={(display) => setSelectedDisplay(display)}
-          onDeleteDisplay={async (e, id) => {
+          onDeleteDisplay={async (id) => {
             await supabase.from('displays').delete().eq('id', id);
             const { data: disps } = await supabase.from('displays').select('*').eq('user_id', targetUserId);
             setDisplaysList(disps || []);
