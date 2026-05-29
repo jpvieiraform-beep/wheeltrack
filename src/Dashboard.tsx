@@ -11,19 +11,17 @@ interface DashboardProps {
   subscriptionStatus: 'free' | 'premium';
   onSelectDisplay: (display: any) => void;
   onDeleteDisplay: (e: React.MouseEvent, displayId: string, displayName: string) => void;
-  onCreateNewClick: () => void;
-  onLogout: () => void;
   wishlist: any[];
   onAddToWishlist: (carName: string, series: string, toyCode: string) => Promise<void>;
   onRemoveFromWishlist: (wishlistId: string) => Promise<void>;
-  isViewingPublic?: boolean;
+  activeTab: 'modules' | 'market' | 'wishlist' | 'matches';
+  setActiveTab: (tab: any) => void;
 }
 
 export default function Dashboard({
-  allMiniatures, displaysList, globalMarket, subscriptionStatus, onSelectDisplay, onDeleteDisplay, onCreateNewClick, onLogout,
-  wishlist, onAddToWishlist, onRemoveFromWishlist
+  allMiniatures, displaysList, globalMarket, subscriptionStatus, onSelectDisplay, onDeleteDisplay,
+  wishlist, onAddToWishlist, onRemoveFromWishlist, activeTab, setActiveTab
 }: DashboardProps) {
-  const [activeTab, setActiveTab] = useState<'expositores' | 'wishlist' | 'mercado' | 'trocas'>('expositores');
   const [showPaywall, setShowPaywall] = useState(false);
   
   // Estados do Chat e Identidades
@@ -74,7 +72,7 @@ export default function Dashboard({
 
   // Carregar conversas na Central de Matches
   useEffect(() => {
-    if (activeTab === 'trocas' && currentUserId) fetchMyChats();
+    if (activeTab === 'matches' && currentUserId) fetchMyChats();
   }, [activeTab, currentUserId]);
 
   // Canal de tempo real para o Chat
@@ -89,7 +87,6 @@ export default function Dashboard({
     }
   }, [activeChatUser, currentUserId]);
 
-  // Redirecionamento dinâmico para a tua Edge Function com o endpoint "smooth-function"
   const handleCheckout = async () => {
     try {
       const SUPABASE_PROJECT_URL = window.location.hostname === 'localhost' 
@@ -102,10 +99,7 @@ export default function Dashboard({
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${(supabase as any).supabaseAnonKey || (supabase as any).auth?.supabaseAnonKey || ''}`
         },
-        body: JSON.stringify({ 
-          userId: currentUserId, 
-          email: currentUserEmail 
-        })
+        body: JSON.stringify({ userId: currentUserId, email: currentUserEmail })
       });
       
       const data = await response.json();
@@ -116,38 +110,7 @@ export default function Dashboard({
       }
     } catch (err) {
       console.error("Erro no Stripe Checkout:", err);
-      alert("Erro de ligação ao servidor de pagamentos.");
     }
-  };
-
-  // Geração e download do relatório da coleção em formato CSV (Excel)
-  const handleExportCollection = () => {
-    if (allMiniatures.length === 0) {
-      alert("A tua coleção ainda não tem carrinhos para exportar! 🚗");
-      return;
-    }
-
-    const headers = ['Nome do Modelo', 'Série', 'Código Toy#', 'Raridade', 'Para Troca?', 'Data de Registo'];
-    
-    const rows = allMiniatures.map(car => [
-      `"${car.name?.replace(/"/g, '""') || ''}"`,
-      `"${car.series?.replace(/"/g, '""') || ''}"`,
-      `"${car.toy_code || ''}"`,
-      `"${car.rarity_type || 'Common'}"`,
-      car.is_for_trade ? 'SIM' : 'NAO',
-      new Date(car.created_at).toLocaleDateString('pt-PT')
-    ]);
-
-    const csvContent = [headers.join(';'), ...rows.map(e => e.join(';'))].join('\n');
-    const blob = new Blob([new Uint8Array([0xEF, 0xBB, 0xBF]), csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    
-    const link = document.createElement("a");
-    link.setAttribute("href", url);
-    link.setAttribute("download", `Minha_Colecao_WheelTrack_${new Date().toISOString().split('T')[0]}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
   };
 
   const fetchMyChats = async () => {
@@ -206,7 +169,7 @@ export default function Dashboard({
       alert("Proposta de troca enviada!");
       setSelectedCarForPropose(null);
       setInitialMessage('');
-      setActiveTab('trocas');
+      setActiveTab('matches');
     } else {
       alert("Erro ao enviar: " + error.message);
     }
@@ -284,111 +247,52 @@ export default function Dashboard({
   }, {});
 
   return (
-    <div className="max-w-5xl mx-auto p-6 space-y-6">
+    <div className="max-w-6xl mx-auto p-4 space-y-6">
       
-      {/* CABEÇALHO */}
-      <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4 border-b border-gray-800 pb-6">
-        <div className="space-y-4">
-          <h1 className="text-2xl font-black tracking-tighter uppercase text-white">
-            WHEELTRACK MAVICUT{' '}
-            {subscriptionStatus === 'premium' ? (
-              <span className="text-yellow-500">PREMIUM</span>
-            ) : (
-              <span className="text-gray-400">FREE</span>
-            )}
-          </h1>
-          
-          <div className="flex flex-wrap bg-gray-900 p-1 rounded-xl border border-gray-800 text-xs w-fit shadow-inner gap-1">
-            <button onClick={() => setActiveTab('expositores')} className={`px-4 py-2 rounded-lg font-extrabold transition-all duration-150 ${activeTab === 'expositores' ? 'bg-yellow-500 text-gray-950 shadow-md' : 'text-gray-400 hover:text-white'}`}>
-              🔲 Meus Expositores
-            </button>
-            <button onClick={() => setActiveTab('wishlist')} className={`px-4 py-2 rounded-lg font-extrabold transition-all duration-150 ${activeTab === 'wishlist' ? 'bg-yellow-500 text-gray-950 shadow-md' : 'text-gray-400 hover:text-white'}`}>
-              ⭐ Wishlist
-            </button>
-            <button onClick={() => setActiveTab('mercado')} className={`px-4 py-2 rounded-lg font-extrabold transition-all duration-150 ${activeTab === 'mercado' ? 'bg-yellow-500 text-gray-950 shadow-md' : 'text-gray-400 hover:text-white'}`}>
-              🌐 Mercado Global
-            </button>
-            <button onClick={() => setActiveTab('trocas')} className={`px-4 py-2 rounded-lg font-extrabold transition-all duration-150 flex items-center gap-2 ${activeTab === 'trocas' ? 'bg-yellow-500 text-gray-950 shadow-md' : 'text-gray-400 hover:text-white'}`}>
-              🔄 Central Matches
-              {activeMatches.length > 0 && (
-                <span className="bg-red-600 text-white px-1.5 py-0.5 rounded-full text-[9px] font-black animate-pulse">
-                  {activeMatches.length}
-                </span>
-              )}
-            </button>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-3 self-end sm:self-auto">
-          {/* BOTÃO EXPORTAR COLECÇÃO */}
-          <button 
-            onClick={handleExportCollection} 
-            className="px-4 py-2.5 bg-gray-850 border border-gray-750 hover:bg-gray-800 text-gray-200 text-xs font-black rounded-lg uppercase tracking-wider shadow transition flex items-center gap-2"
-          >
-            📥 Exportar Lista
-          </button>
-
-          <button onClick={onCreateNewClick} className="px-4 py-2.5 bg-yellow-500 text-gray-950 text-xs font-black rounded-lg uppercase tracking-wider shadow hover:bg-yellow-600 transition">
-            + Novo Módulo
-          </button>
-          <button onClick={onLogout} className="px-4 py-2.5 bg-red-950 border border-red-800 hover:bg-red-900 text-white font-bold text-xs rounded-lg uppercase tracking-wider transition">
-            Sair
-          </button>
-        </div>
-      </div>
-
       {/* ABA: EXPOSITORES */}
-      {activeTab === 'expositores' && (
+      {activeTab === 'modules' && (
         <>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <div className="bg-gray-900 border border-gray-800 p-4 rounded-xl text-center shadow">
-              <span className="text-xs text-gray-400 block mb-1">Total Modelos</span>
+            <div className="bg-sky-950/40 border border-sky-900/40 p-4 rounded-xl text-center shadow">
+              <span className="text-xs text-sky-300 block mb-1">Total Modelos</span>
               <span className="text-2xl font-black">{allMiniatures.length}</span>
             </div>
-            <div className="bg-gray-900 border border-gray-800 p-4 rounded-xl text-center border-l-4 border-l-amber-500 flex flex-col items-center justify-center shadow">
+            <div className="bg-sky-950/40 border border-sky-900/40 p-4 rounded-xl text-center border-l-4 border-l-amber-500 flex flex-col items-center justify-center shadow">
               <img src={ICON_STH} alt="STH" className="w-5 h-5 object-contain mb-1" />
               <span className="text-xl font-black text-amber-400">{allMiniatures.filter(m => m.rarity_type === 'Super Treasure Hunt').length}</span>
             </div>
-            <div className="bg-gray-900 border border-gray-800 p-4 rounded-xl text-center border-l-4 border-l-slate-400 flex flex-col items-center justify-center shadow">
+            <div className="bg-sky-950/40 border border-sky-900/40 p-4 rounded-xl text-center border-l-4 border-l-slate-400 flex flex-col items-center justify-center shadow">
               <img src={ICON_TH} alt="TH" className="w-5 h-5 object-contain mb-1" />
               <span className="text-xl font-black text-slate-300">{allMiniatures.filter(m => m.rarity_type === 'Treasure Hunt').length}</span>
             </div>
-            <div className="bg-gray-900 border border-gray-800 p-4 rounded-xl text-center border-l-4 border-l-blue-500 shadow">
-              <span className="text-xs text-gray-400 block mb-1">Para Troca</span>
+            <div className="bg-sky-950/40 border border-sky-900/40 p-4 rounded-xl text-center border-l-4 border-l-blue-500 shadow">
+              <span className="text-xs text-sky-300 block mb-1">Para Troca</span>
               <span className="text-2xl font-black text-blue-400">{allMiniatures.filter(m => m.is_for_trade).length}</span>
             </div>
           </div>
           
           <div className="space-y-6 pt-2">
             {Object.keys(groupedDisplaysByRoom).map((roomName) => {
-              // Deteta automaticamente se este grupo é de Caixas Soltas
               const isBox = roomName.toUpperCase() === 'CAIXA';
-              
               return (
-                <div key={roomName} className={`space-y-3 p-4 rounded-2xl border ${isBox ? 'bg-amber-950/10 border-amber-900/30' : 'bg-gray-900/40 border-gray-800/50'}`}>
-                  <h3 className={`text-xs font-black tracking-wider uppercase border-b pb-1 ${isBox ? 'text-amber-500 border-amber-900/50' : 'text-gray-400 border-gray-800'}`}>
+                <div key={roomName} className={`space-y-3 p-4 rounded-2xl border ${isBox ? 'bg-amber-950/10 border-amber-900/30' : 'bg-sky-900/20 border-sky-900/30'}`}>
+                  <h3 className={`text-xs font-black tracking-wider uppercase border-b pb-1 ${isBox ? 'text-amber-500 border-amber-900/50' : 'text-sky-300 border-sky-900/40'}`}>
                     {isBox ? '📦 Caixas de Arrumação / Stock' : `📍 ${roomName}`}
                   </h3>
-                  
                   <div className="grid sm:grid-cols-3 gap-4">
                     {groupedDisplaysByRoom[roomName].map((disp: any) => (
                       <div 
                         key={disp.id} 
                         onClick={() => onSelectDisplay(disp)} 
-                        className={`p-5 rounded-xl cursor-pointer transition relative group shadow ${
+                        className={`p-5 rounded-xl cursor-pointer transition relative group shadow backdrop-blur-sm ${
                           isBox 
                             ? 'bg-amber-950/20 border-dashed border-2 border-amber-800/50 hover:border-amber-500' 
-                            : 'bg-gray-900 border border-gray-800 hover:border-yellow-500'
+                            : 'bg-sky-950/40 border border-sky-900/40 hover:border-yellow-500'
                         }`}
                       >
-                        <button onClick={(e) => onDeleteDisplay(e, disp.id, disp.name)} className="absolute top-3 right-3 text-gray-600 hover:text-red-500 opacity-0 group-hover:opacity-100 transition">🗑️</button>
-                        
-                        <h4 className="text-base font-bold text-gray-200">
-                          {isBox ? '📦 ' : '🔲 '}
-                          {cleanDisplayName(disp.name)}
-                        </h4>
-                        
-                        <span className={`text-[10px] px-2 py-0.5 rounded font-mono mt-2 inline-block ${isBox ? 'bg-amber-900/40 text-amber-400' : 'bg-gray-950 text-gray-400'}`}>
+                        <button onClick={(e) => { e.stopPropagation(); onDeleteDisplay(e, disp.id, disp.name); }} className="absolute top-3 right-3 text-sky-600 hover:text-red-500 opacity-0 group-hover:opacity-100 transition">🗑️</button>
+                        <h4 className="text-base font-bold text-gray-200">{isBox ? '📦 ' : '🔲 '}{cleanDisplayName(disp.name)}</h4>
+                        <span className={`text-[10px] px-2 py-0.5 rounded font-mono mt-2 inline-block ${isBox ? 'bg-amber-900/40 text-amber-400' : 'bg-gray-950 text-sky-400'}`}>
                           {isBox ? 'Capacidade Livre' : `${disp.rows_count}×${disp.columns_count} Vagas`}
                         </span>
                       </div>
@@ -404,41 +308,41 @@ export default function Dashboard({
       {/* ABA: WISHLIST */}
       {activeTab === 'wishlist' && (
         <div className="pt-2 animate-fade-in grid md:grid-cols-3 gap-6">
-          <div className="bg-gray-900 border border-gray-800 p-5 rounded-2xl h-fit space-y-4 text-left">
-            <h3 className="text-sm font-black text-white uppercase tracking-wider border-b border-gray-800 pb-2">Adicionar à Lista</h3>
+          <div className="bg-sky-950/40 border border-sky-900/40 p-5 rounded-2xl h-fit space-y-4 text-left backdrop-blur-sm">
+            <h3 className="text-sm font-black text-white uppercase tracking-wider border-b border-sky-900/40 pb-2">Adicionar à Lista</h3>
             <form onSubmit={handleWishlistSubmit} className="space-y-3">
               <div>
-                <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Modelo / Nome do Carro *</label>
-                <input type="text" value={newCarName} onChange={(e) => setNewCarName(e.target.value)} placeholder="Ex: Nissan Skyline GT-R" className="w-full bg-gray-950 border border-gray-750 rounded-xl p-2.5 text-xs text-white focus:outline-none focus:border-yellow-500" required />
+                <label className="block text-[10px] font-bold text-sky-300 uppercase mb-1">Modelo / Nome do Carro *</label>
+                <input type="text" value={newCarName} onChange={(e) => setNewCarName(e.target.value)} placeholder="Ex: Nissan Skyline GT-R" className="w-full bg-sky-950 border border-sky-800 rounded-xl p-2.5 text-xs text-white focus:outline-none focus:border-yellow-500" required />
               </div>
               <div>
-                <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Série (Opcional)</label>
-                <input type="text" value={newSeries} onChange={(e) => setNewSeries(e.target.value)} placeholder="Ex: Then and Now" className="w-full bg-gray-950 border border-gray-750 rounded-xl p-2.5 text-xs text-white focus:outline-none focus:border-yellow-500" />
+                <label className="block text-[10px] font-bold text-sky-300 uppercase mb-1">Série (Opcional)</label>
+                <input type="text" value={newSeries} onChange={(e) => setNewSeries(e.target.value)} placeholder="Ex: Then and Now" className="w-full bg-sky-950 border border-sky-800 rounded-xl p-2.5 text-xs text-white focus:outline-none focus:border-yellow-500" />
               </div>
               <div>
-                <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Código Toy# / Fabrico (Opcional)</label>
-                <input type="text" value={newToyCode} onChange={(e) => setNewToyCode(e.target.value)} placeholder="Ex: HKG27" className="w-full bg-gray-950 border border-gray-750 rounded-xl p-2.5 text-xs text-white focus:outline-none focus:border-yellow-500" />
+                <label className="block text-[10px] font-bold text-sky-300 uppercase mb-1">Código Toy# / Fabrico (Opcional)</label>
+                <input type="text" value={newToyCode} onChange={(e) => setNewToyCode(e.target.value)} placeholder="Ex: HKG27" className="w-full bg-sky-950 border border-sky-800 rounded-xl p-2.5 text-xs text-white focus:outline-none focus:border-yellow-500" />
               </div>
               <button type="submit" className="w-full py-2.5 bg-yellow-500 text-gray-950 font-black text-xs rounded-xl uppercase tracking-wider hover:bg-yellow-400 transition shadow">Lançar Desejo</button>
             </form>
           </div>
 
           <div className="md:col-span-2 space-y-4 text-left">
-            <h3 className="text-sm font-black text-white uppercase tracking-wider border-b border-gray-800 pb-2">Modelos Caçados ({wishlist.length})</h3>
+            <h3 className="text-sm font-black text-white uppercase tracking-wider border-b border-sky-900/40 pb-2">Modelos Caçados ({wishlist.length})</h3>
             {wishlist.length === 0 ? (
-              <div className="bg-gray-900/40 border border-gray-800/50 rounded-2xl p-8 text-center text-gray-500 text-sm">A tua lista de caça está vazia. Adiciona carros ao lado!</div>
+              <div className="bg-sky-950/20 border border-sky-900/40 rounded-2xl p-8 text-center text-sky-400/60 text-sm">A tua lista de caça está vazia. Adiciona carros ao lado!</div>
             ) : (
               <div className="grid sm:grid-cols-2 gap-3">
                 {wishlist.map((item) => (
-                  <div key={item.id} className="bg-gray-900 border border-gray-800 p-4 rounded-xl flex justify-between items-center group hover:border-gray-700 shadow transition">
+                  <div key={item.id} className="bg-sky-950/40 border border-sky-900/40 p-4 rounded-xl flex justify-between items-center group hover:border-sky-500 shadow transition backdrop-blur-sm">
                     <div>
-                      <h4 className="text-sm font-bold text-white">{item.car_name}</h4>
+                      <h4 className="text-sm font-bold text-white uppercase tracking-tight">{item.car_name}</h4>
                       <div className="flex gap-2 mt-1">
-                        {item.series && <span className="text-[9px] bg-gray-950 px-2 py-0.5 rounded text-gray-400">🎬 {item.series}</span>}
+                        {item.series && <span className="text-[9px] bg-gray-950 px-2 py-0.5 rounded text-sky-400">🎬 {item.series}</span>}
                         {item.toy_code && <span className="text-[9px] bg-yellow-500/10 border border-yellow-500/20 px-2 py-0.5 rounded text-yellow-500 font-mono"># {item.toy_code}</span>}
                       </div>
                     </div>
-                    <button onClick={() => onRemoveFromWishlist(item.id)} className="text-gray-600 hover:text-red-500 text-xs transition p-2">🗑️</button>
+                    <button onClick={() => onRemoveFromWishlist(item.id)} className="text-sky-600 hover:text-red-500 text-xs transition p-2">🗑️</button>
                   </div>
                 ))}
               </div>
@@ -448,20 +352,20 @@ export default function Dashboard({
       )}
 
       {/* ABA: MERCADO GLOBAL */}
-      {activeTab === 'mercado' && (
+      {activeTab === 'market' && (
         <div className="pt-2 animate-fade-in space-y-4">
-          <div className="border-b border-gray-800 pb-3 flex justify-between items-end">
+          <div className="border-b border-sky-900/40 pb-3 flex justify-between items-end">
             <div>
-              <h3 className="text-lg font-black text-white">Classificados da Comunidade</h3>
-              <p className="text-xs text-gray-400 font-light mt-0.5">Miniaturas sinalizadas para troca por outros colecionadores.</p>
+              <h3 className="text-lg font-black text-white uppercase tracking-wider text-yellow-400">Classificados da Comunidade</h3>
+              <p className="text-xs text-sky-300/70 font-light mt-0.5">Miniaturas sinalizadas para troca por outros colecionadores.</p>
             </div>
-            <span className="text-xs bg-gray-800 text-gray-300 px-2 py-1 rounded font-bold">{globalMarket.length} available</span>
+            <span className="text-xs bg-sky-900/50 text-white px-2 py-1 rounded font-bold">{globalMarket.length} Modelos Livres</span>
           </div>
 
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
             {globalMarket.map((car, idx) => (
-              <div key={idx} className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden flex flex-col hover:border-gray-600 transition shadow">
-                <div className="h-32 bg-gray-950 flex items-center justify-center overflow-hidden relative">
+              <div key={idx} className="bg-sky-950/40 border border-sky-900/40 rounded-xl overflow-hidden flex flex-col hover:border-sky-500 transition shadow backdrop-blur-sm">
+                <div className="h-32 bg-gray-950 flex items-center justify-center overflow-hidden relative border-b border-sky-900/30">
                   {car.photo_url ? (
                     <img src={car.photo_url} alt={car.name} className="w-full h-full object-cover opacity-80" />
                   ) : (
@@ -472,12 +376,11 @@ export default function Dashboard({
                   </div>
                 </div>
                 <div className="p-3 flex flex-col flex-1 text-left">
-                  <h4 className="text-sm font-bold text-white truncate">{car.name}</h4>
-                  <span className="text-[10px] text-gray-400 mt-1">Série: {car.series || 'N/A'}</span>
+                  <h4 className="text-sm font-black text-white truncate uppercase tracking-tight">{car.name}</h4>
+                  <span className="text-[10px] text-sky-400 mt-1 font-medium">Série: {car.series || 'N/A'}</span>
                   {car.toy_code && <span className="text-[9px] text-yellow-500 font-mono">#{car.toy_code}</span>}
                   <span className="text-[10px] text-yellow-500 font-bold mt-2 flex items-center gap-1">👤 {userProfiles[car.user_id] || 'Colecionador'}</span>
-                  
-                  <button onClick={() => handleProporTrocaClick(car)} className="mt-auto pt-3 w-full border-t border-gray-800 text-xs font-bold text-blue-400 hover:text-blue-300 transition uppercase tracking-wide flex items-center justify-center gap-2">💬 Propor Troca</button>
+                  <button onClick={() => handleProporTrocaClick(car)} className="mt-auto pt-3 w-full border-t border-sky-900/30 text-xs font-black text-blue-400 hover:text-blue-300 transition uppercase tracking-wider flex items-center justify-center gap-2">💬 Propor Troca</button>
                 </div>
               </div>
             ))}
@@ -486,94 +389,88 @@ export default function Dashboard({
       )}
 
       {/* ABA: CENTRAL DE MATCHES / CHAT */}
-      {activeTab === 'trocas' && (
+      {activeTab === 'matches' && (
         <div className="pt-2 animate-fade-in space-y-4">
-          <div className="bg-gray-900/40 border border-gray-800/80 p-5 rounded-2xl text-left space-y-3">
-            <h3 className="text-sm font-black text-yellow-500 uppercase tracking-wider flex items-center gap-2">📡 Radar de Cruzamentos Automáticos</h3>
-            
-            {/* SE FOR FREE: MOSTRA O CARD DE CONVERSÃO DO STRIPE DIRETAMENTE */}
+          <div className="bg-sky-950/20 border border-sky-900/40 p-5 rounded-2xl text-left space-y-3 backdrop-blur-sm">
+            <h3 className="text-sm font-black text-yellow-400 uppercase tracking-wider flex items-center gap-2">📡 Radar de Cruzamentos Automáticos</h3>
             {subscriptionStatus === 'free' ? (
-              <div className="bg-gradient-to-br from-gray-950 to-gray-900 border border-yellow-500/20 p-6 rounded-xl text-center space-y-4 relative overflow-hidden">
-                <div className="absolute top-0 right-0 bg-yellow-500 text-gray-950 text-[9px] font-black px-3 py-1 uppercase tracking-wider rounded-bl-lg animate-pulse">
+              <div className="bg-gradient-to-br from-gray-950 to-sky-950/50 border border-yellow-500/20 p-6 rounded-xl text-center space-y-4 relative overflow-hidden">
+                <div className="absolute top-0 right-0 bg-yellow-500 text-gray-950 text-[9px] font-black px-3 py-1 uppercase tracking-wider rounded-bl-lg">
                   {activeMatches.length} Cruzamentos Detetados!
                 </div>
-                <p className="text-xs text-gray-300 max-w-md mx-auto leading-relaxed">
-                  O radar detetou <span className="text-yellow-500 font-bold">{activeMatches.length} correspondências</span> entre a tua Wishlist e o Mercado Global! Desbloqueia o acesso para abrir as conversas e fechar os teus negócios.
+                <p className="text-xs text-sky-200/80 max-w-md mx-auto leading-relaxed">
+                  O radar detetou <span className="text-yellow-400 font-bold">{activeMatches.length} correspondências</span> entre a tua Wishlist e o Mercado Global! Desbloqueia o acesso para abrir as conversas e fechar os teus negócios.
                 </p>
                 <div className="pt-2">
-                  <button 
-                    onClick={handleCheckout} 
-                    className="bg-gradient-to-r from-yellow-500 to-amber-600 hover:from-yellow-400 hover:to-amber-500 text-gray-950 font-black text-xs px-6 py-3 rounded-xl uppercase tracking-wider shadow-lg transform hover:scale-[1.01] transition-all"
-                  >
+                  <button onClick={handleCheckout} className="bg-gradient-to-r from-yellow-400 to-amber-500 text-gray-950 font-black text-xs px-6 py-3 rounded-xl uppercase tracking-wider shadow-lg transition">
                     Ativar Conta PRO por 2,99€ / Mês
                   </button>
                 </div>
               </div>
             ) : activeMatches.length === 0 ? (
-              <p className="text-xs text-gray-500">Nenhum colecionador tem atualmente os carros da tua Wishlist marcados para troca.</p>
+              <p className="text-xs text-sky-400/60 font-medium">Nenhum colecionador tem atualmente os carros da tua Wishlist marcados para troca.</p>
             ) : (
-              /* SE FOR PREMIUM: EXIBE OS CARDS DOS MATCHES REAIS */
               <div className="grid sm:grid-cols-2 gap-3">
                 {activeMatches.map((match, i) => (
-                  <div key={i} className="bg-gray-900 border-2 border-yellow-500/30 p-4 rounded-xl flex justify-between items-center shadow-lg">
+                  <div key={i} className="bg-sky-950/40 border-2 border-yellow-500/30 p-4 rounded-xl flex justify-between items-center shadow-lg backdrop-blur-sm">
                     <div>
-                      <span className="text-[9px] bg-yellow-500 text-gray-950 font-black px-1.5 py-0.5 rounded uppercase">Match Ideal</span>
-                      <h4 className="text-sm font-bold text-white mt-1.5">Tu queres: {match.wishName}</h4>
-                      <p className="text-xs text-gray-400">Disponível com: <span className="text-yellow-500 font-bold">{userProfiles[match.car.user_id] || 'Colecionador'}</span></p>
+                      <span className="text-[9px] bg-yellow-500 text-gray-950 font-black px-1.5 py-0.5 rounded uppercase tracking-wider">Match Ideal</span>
+                      <h4 className="text-sm font-bold text-white mt-1.5 uppercase tracking-tight">Tu queres: {match.wishName}</h4>
+                      <p className="text-xs text-sky-300 font-medium">Disponível com: <span className="text-yellow-400 font-bold">{userProfiles[match.car.user_id] || 'Colecionador'}</span></p>
                     </div>
-                    <button onClick={() => handleProporTrocaClick(match.car)} className="bg-blue-600 text-white font-bold text-xs px-3 py-2 rounded-lg uppercase">Negociar</button>
+                    <button onClick={() => handleProporTrocaClick(match.car)} className="bg-blue-600 hover:bg-blue-500 text-white font-black text-xs px-4 py-2 rounded-lg uppercase tracking-wider transition">Negociar</button>
                   </div>
                 ))}
               </div>
             )}
           </div>
 
-          <div className="bg-gray-900 border border-gray-800 rounded-2xl overflow-hidden h-[450px] flex shadow-xl">
-            <div className="w-1/3 border-r border-gray-800 bg-gray-950 flex flex-col">
-              <div className="p-4 border-b border-gray-800 text-left"><h3 className="text-xs font-black text-white uppercase tracking-wider">Conversas</h3></div>
-              <div className="flex-1 overflow-y-auto divide-y divide-gray-900">
+          <div className="bg-sky-950/40 border border-sky-900/40 rounded-2xl overflow-hidden h-[450px] flex shadow-xl backdrop-blur-sm">
+            <div className="w-1/3 border-r border-sky-900/30 bg-gray-950/60 flex flex-col">
+              <div className="p-4 border-b border-sky-900/30 text-left"><h3 className="text-xs font-black text-white uppercase tracking-wider">Conversas</h3></div>
+              <div className="flex-1 overflow-y-auto divide-y divide-sky-950">
                 {myChats.length === 0 ? (
-                  <div className="p-4 text-xs text-gray-500 text-center mt-10">Nenhuma conversa activa.</div>
+                  <div className="p-4 text-xs text-sky-400/50 text-center mt-10 font-bold uppercase tracking-wider">Nenhuma conversa ativa.</div>
                 ) : (
                   myChats.map((chat) => (
-                    <div key={chat.userId} onClick={() => setActiveChatUser(chat.userId)} className={`p-4 cursor-pointer transition text-left ${activeChatUser === chat.userId ? 'bg-gray-900' : 'hover:bg-gray-900/40'}`}>
+                    <div key={chat.userId} onClick={() => setActiveChatUser(chat.userId)} className={`p-4 cursor-pointer transition text-left ${activeChatUser === chat.userId ? 'bg-sky-900/20' : 'hover:bg-sky-900/10'}`}>
                       <div className="flex justify-between items-center">
-                        <span className="text-xs font-bold text-yellow-500 truncate">{userProfiles[chat.userId] || 'Colecionador'}</span>
-                        <span className="text-[9px] text-gray-500">{new Date(chat.date).toLocaleDateString()}</span>
+                        <span className="text-xs font-black text-yellow-400 truncate">{userProfiles[chat.userId] || 'Colecionador'}</span>
+                        <span className="text-[9px] text-sky-400 font-medium">{new Date(chat.date).toLocaleDateString()}</span>
                       </div>
-                      <p className="text-xs text-gray-400 truncate mt-1">{chat.lastMessage}</p>
+                      <p className="text-xs text-sky-300/80 truncate mt-1">{chat.lastMessage}</p>
                     </div>
                   ))
                 )}
               </div>
             </div>
 
-            <div className="flex-1 flex flex-col bg-gray-900">
+            <div className="flex-1 flex flex-col bg-sky-950/10">
               {activeChatUser ? (
                 <>
-                  <div className="p-4 border-b border-gray-800 bg-gray-950 text-left">
-                    <span className="text-xs font-black text-white uppercase tracking-wide">Conversa com <span className="text-yellow-500">{userProfiles[activeChatUser] || 'Colecionador'}</span></span>
+                  <div className="p-4 border-b border-sky-900/30 bg-gray-950/40 text-left">
+                    <span className="text-xs font-black text-white uppercase tracking-wider">Conversa com <span className="text-yellow-400">{userProfiles[activeChatUser] || 'Colecionador'}</span></span>
                   </div>
                   <div className="flex-1 p-4 overflow-y-auto space-y-3 flex flex-col">
                     {chatMessages.map((msg) => {
                       const isMe = msg.sender_id === currentUserId;
                       return (
-                        <div key={msg.id} className={`max-w-[70%] p-3 rounded-2xl text-sm text-left ${isMe ? 'bg-blue-600 text-white self-end rounded-br-none' : 'bg-gray-800 text-gray-200 self-start rounded-bl-none'}`}>
+                        <div key={msg.id} className={`max-w-[70%] p-3 rounded-2xl text-sm text-left ${isMe ? 'bg-blue-600 text-white self-end rounded-br-none' : 'bg-sky-900/50 border border-sky-800 text-gray-200 self-start rounded-bl-none'}`}>
                           <p>{msg.content}</p>
-                          <span className="text-[8px] opacity-60 block text-right mt-1">{new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                          <span className="text-[8px] opacity-60 block text-right mt-1 font-mono">{new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                         </div>
                       );
                     })}
                   </div>
-                  <form onSubmit={handleSendReply} className="p-3 bg-gray-950 border-t border-gray-800 flex gap-2">
-                    <input type="text" value={replyText} onChange={(e) => setReplyText(e.target.value)} placeholder="Escreve uma resposta..." className="flex-1 bg-gray-900 border border-gray-750 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none" />
-                    <button type="submit" className="bg-blue-600 text-white px-5 font-bold text-xs rounded-xl uppercase">Enviar</button>
+                  <form onSubmit={handleSendReply} className="p-3 bg-gray-950/60 border-t border-sky-900/30 flex gap-2">
+                    <input type="text" value={replyText} onChange={(e) => setReplyText(e.target.value)} placeholder="Escreve uma resposta..." className="flex-1 bg-sky-950 border border-sky-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-sky-500 transition" />
+                    <button type="submit" className="bg-blue-600 text-white px-5 font-black text-xs rounded-xl uppercase tracking-wider">Enviar</button>
                   </form>
                 </>
               ) : (
-                <div className="flex-1 flex flex-col items-center justify-center text-gray-500 space-y-2">
+                <div className="flex-1 flex flex-col items-center justify-center text-sky-400/50 space-y-2 uppercase tracking-wider font-bold">
                   <span className="text-3xl">💬</span>
-                  <p className="text-xs font-medium">Seleciona um contacto para conversar.</p>
+                  <p className="text-xs">Seleciona um contacto para conversar.</p>
                 </div>
               )}
             </div>
@@ -584,15 +481,15 @@ export default function Dashboard({
       {/* MODAL MENSAGEM INICIAL */}
       {selectedCarForPropose && (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-gray-900 border border-gray-800 p-6 rounded-2xl max-w-md w-full space-y-4 shadow-2xl text-left">
-            <h3 className="text-sm font-black text-white uppercase tracking-wider border-b border-gray-800 pb-2">Proposta de Troca</h3>
+          <div className="bg-sky-900 border border-sky-800 p-6 rounded-2xl max-w-md w-full space-y-4 shadow-2xl text-left">
+            <h3 className="text-sm font-black text-white uppercase tracking-wider border-b border-sky-800 pb-2">Proposta de Troca</h3>
             <form onSubmit={handleSendInitialMessage} className="space-y-4">
               <div>
-                <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Mensagem Inicial</label>
-                <textarea value={initialMessage} onChange={(e) => setInitialMessage(e.target.value)} className="w-full h-24 bg-gray-950 border border-gray-750 rounded-xl p-3 text-xs text-white focus:outline-none resize-none" required></textarea>
+                <label className="block text-[10px] font-bold text-sky-300 uppercase mb-1">Mensagem Inicial</label>
+                <textarea value={initialMessage} onChange={(e) => setInitialMessage(e.target.value)} className="w-full h-24 bg-gray-950 border border-sky-800 rounded-xl p-3 text-xs text-white focus:outline-none resize-none" required></textarea>
               </div>
               <div className="flex justify-end gap-3 pt-2">
-                <button type="button" onClick={() => setSelectedCarForPropose(null)} className="px-3 py-1.5 text-xs font-bold text-gray-400">Cancelar</button>
+                <button type="button" onClick={() => setSelectedCarForPropose(null)} className="px-3 py-1.5 text-xs font-bold text-sky-400">Cancelar</button>
                 <button type="submit" className="px-5 py-2 bg-yellow-500 text-gray-950 font-black text-xs rounded-xl uppercase">Enviar Proposta</button>
               </div>
             </form>
@@ -600,23 +497,17 @@ export default function Dashboard({
         </div>
       )}
 
-      {/* PAYWALL ATIVA (Lançada a partir dos cliques no Mercado Global) */}
+      {/* PAYWALL ATIVA */}
       {showPaywall && subscriptionStatus === 'free' && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in">
-          <div className="relative w-full max-w-md bg-gray-900 border border-gray-770 p-8 rounded-3xl text-center shadow-[0_0_40px_rgba(0,0,0,0.8)]">
-            <button onClick={() => setShowPaywall(false)} className="absolute top-4 right-4 text-gray-500 hover:text-white">✕</button>
-            <div className="w-16 h-16 bg-yellow-500/10 border border-yellow-500/30 rounded-full flex items-center justify-center text-3xl mx-auto shadow-[0_0_15px_rgba(234,179,8,0.15)] mb-4">🔒</div>
-            <h3 className="text-2xl font-black text-white tracking-tight">Recurso Premium</h3>
-            <p className="text-sm text-gray-400 mt-3 mb-6 leading-relaxed">Para iniciares conversas, veres o cruzamento de dados e veres quem tem o carro que procuras, desbloqueia o WheelTrack PRO.</p>
-            
-            <button onClick={handleCheckout} className="w-full py-3.5 bg-gradient-to-r from-yellow-500 to-amber-600 hover:from-yellow-400 hover:to-amber-500 text-gray-950 font-black text-sm rounded-xl uppercase tracking-wider shadow-lg transition transform hover:scale-[1.02]">
+          <div className="relative w-full max-w-md bg-sky-950 border border-sky-800 p-8 rounded-3xl text-center shadow-2xl">
+            <button onClick={() => setShowPaywall(false)} className="absolute top-4 right-4 text-sky-400 hover:text-white">✕</button>
+            <div className="w-16 h-16 bg-yellow-500/10 border border-yellow-500/30 rounded-full flex items-center justify-center text-3xl mx-auto mb-4">🔒</div>
+            <h3 className="text-2xl font-black text-white tracking-tight uppercase">Recurso PRO</h3>
+            <p className="text-sm text-sky-200/70 mt-3 mb-6 leading-relaxed">Para iniciares conversas, veres o cruzamento de dados e veres quem tem o carro que procuras, desbloqueia o WheelTrack PRO.</p>
+            <button onClick={handleCheckout} className="w-full py-3.5 bg-gradient-to-r from-yellow-400 to-amber-500 text-gray-950 font-black text-sm rounded-xl uppercase tracking-wider shadow-lg transition">
               Desbloquear por 2,99€ / Mês
             </button>
-            
-            <div className="mt-4 flex flex-col gap-2 text-[10px] text-gray-500 font-medium">
-              <span className="flex items-center justify-center gap-1">✔️ Cancela a qualquer momento</span>
-              <span className="flex items-center justify-center gap-1">✔️ Match instantâneo por Código Toy#</span>
-            </div>
           </div>
         </div>
       )}
