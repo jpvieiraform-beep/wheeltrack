@@ -18,7 +18,7 @@ function GaragemContainer({ session }: { session: any }) {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   
   // Sincronização centralizada com os nomes de abas exigidos pelo teu Dashboard.tsx
-  const [activeTab, setActiveTab] = useState<'modules' | 'market' | 'wishlist' | 'matches'>('modules');
+  const [activeTab, setActiveTab] = useState<'modules' | 'market' | 'wishlist' | 'matches' | 'feed'>('modules');
   
   // Captura se o utilizador está a inspecionar uma vitrine ou caixa específica
   const [selectedDisplay, setSelectedDisplay] = useState<any>(null);
@@ -150,10 +150,10 @@ function GaragemContainer({ session }: { session: any }) {
   return (
     <div className="relative min-h-screen bg-gradient-to-b from-sky-950 via-slate-950 to-black text-white font-sans pb-16">
       
-      {/* PAINEL DE CONTROLO INTEGRADO (ESTRUTURA SOLICITADA) */}
+      {/* PAINEL DE CONTROLO INTEGRADO */}
       <div className="max-w-6xl mx-auto px-4 pt-6 space-y-4">
         
-        {/* FILA DO TITULO COM HIERARQUIA RECONFIGURADA */}
+        {/* FILA DO TITULO */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4 bg-sky-900/10 border border-sky-800/30 p-6 rounded-2xl shadow-2xl backdrop-blur-md">
           <div className="space-y-1">
             <span className="text-[11px] font-black tracking-widest text-sky-400 uppercase block">
@@ -166,9 +166,8 @@ function GaragemContainer({ session }: { session: any }) {
             {profileData?.location && <span className="text-[10px] text-sky-400 block">📍 {profileData.location}</span>}
           </div>
 
-          {/* BOTÕES LATERAIS DE ACÇÃO (ALINHAMENTO DUPLO DIREITA) */}
+          {/* BOTÕES LATERAIS DE ACÇÃO */}
           <div className="flex flex-col gap-2 w-full md:w-auto items-stretch md:items-end shrink-0">
-            {/* LINHA 1: PERFIL E SAIR */}
             {!username ? (
               <div className="flex gap-2 justify-end w-full">
                 <button 
@@ -193,7 +192,6 @@ function GaragemContainer({ session }: { session: any }) {
               </button>
             )}
 
-            {/* LINHA 2: EXPORTAR LISTA E NOVO MÓDULO */}
             {!username && (
               <div className="flex gap-2 justify-end w-full">
                 <button 
@@ -213,7 +211,7 @@ function GaragemContainer({ session }: { session: any }) {
           </div>
         </div>
 
-        {/* SELEÇÃO DE MENUS / ABAS CENTRALIZADAS POR BAIXO (STRINGS CORRIGIDAS PARA INGLÊS) */}
+        {/* SELEÇÃO DE MENUS COM A NOVA ABA DO FEED SOCIAL INTEGRADA */}
         {!username && (
           <div className="flex flex-wrap bg-sky-950/40 p-1 rounded-xl border border-sky-900/40 text-xs w-full shadow-2xl backdrop-blur-sm gap-1">
             <button
@@ -226,7 +224,7 @@ function GaragemContainer({ session }: { session: any }) {
               onClick={() => { setSelectedDisplay(null); setActiveTab('market'); }}
               className={`px-4 py-2.5 rounded-lg font-black uppercase tracking-wider transition-all grow md:grow-0 ${activeTab === 'market' ? 'bg-yellow-500 text-gray-950 font-black' : 'text-sky-300 hover:text-white'}`}
             >
-              🌍 Mercado Global de Trocas
+              🌍 Mercado & Radar 🛞
             </button>
             <button
               onClick={() => { setSelectedDisplay(null); setActiveTab('wishlist'); }}
@@ -244,7 +242,7 @@ function GaragemContainer({ session }: { session: any }) {
         )}
       </div>
 
-      {/* ALTERNADOR DE CONTEÚDO CORRIGIDO: Se houver uma vitrine selecionada abre a grelha, caso contrário abre o Dashboard */}
+      {/* ALTERNADOR DE CONTEÚDO */}
       {selectedDisplay && targetUserId ? (
         <VirtualDisplay targetUserId={targetUserId} isViewingPublic={!!username} />
       ) : (
@@ -326,7 +324,8 @@ export default function App() {
       if (error) {
         setMessage(`Erro: ${error.message}`);
       } else if (data?.user) {
-        setMessage('Registo feito com sucesso! Confirma o e-mail de ativação.');
+        setMessage('Registo feito com sucesso! Faz login com a tua nova conta.');
+        setIsRegistering(false);
         setFullName('');
       }
     } else {
