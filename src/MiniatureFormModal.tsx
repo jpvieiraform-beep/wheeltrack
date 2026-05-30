@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from './supabaseClient';
+import { logActivity } from './activityService';
 
 interface MiniatureFormModalProps {
   isOpen: boolean;
@@ -147,14 +148,33 @@ export default function MiniatureFormModal({ isOpen, onClose, onSaveComplete, di
         const finalRow = slot?.row || Math.floor(Math.random() * 900000) + 1000;
         const finalCol = slot?.col || Math.floor(Math.random() * 900000) + 1000;
 
-        const { error: insertError } = await supabase.from('miniatures').insert([{
+        const { data: insertedData, error: insertError } = await supabase.from('miniatures').insert([{
           user_id: user.id,
           display_id: displayId,
           display_row: finalRow,
           display_column: finalCol,
           ...payload
-        }]);
+        }]).select();
+        
         if (insertError) throw insertError;
+
+        // 🎯 GATILHO: REGISTAR ATIVIDADE NO FEED AUTOMATICAMENTE
+        if (insertedData && insertedData.length > 0) {
+          const miniatureId = insertedData[0].id;
+          const rarityEmoji = carRarity === 'Super Treasure Hunt' ? '⭐' : carRarity === 'Treasure Hunt' ? '🌟' : '🚗';
+          const description = `Adicionou o ${rarityEmoji} ${carName}${carSeries ? ` (${carSeries})` : ''} à sua coleção`;
+          
+          await logActivity(
+            'car_added',
+            description,
+            miniatureId,
+            { 
+              rarity: carRarity, 
+              series: carSeries,
+              photo_url: carPhotoUrl
+            }
+          );
+        }
       }
       onSaveComplete();
     } catch (error: any) {
@@ -199,14 +219,14 @@ export default function MiniatureFormModal({ isOpen, onClose, onSaveComplete, di
           {/* Nome */}
           <div>
             <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Nome Oficial *</label>
-            <input type="text" value={carName} onChange={(e) => setCarName(e.target.value)} disabled={!isOwner} placeholder="Ex: '67 Camaro" className="w-full bg-gray-950 border border-gray-700 rounded-lg p-3 text-sm text-white placeholder-gray-500 focus:border-yellow-500 outline-none transition disabled:opacity-70" required />
+            <input type="text" value={carName} onChange={(e) => setCarName(e.target.value)} disabled={!isOwner} placeholder="Ex: '67 Camaro" className="w-full bg-gray-950 border border-gray-700 rounded-lg p-3 text-sm text-white placeholder-gray-600 focus:border-yellow-500 outline-none transition disabled:opacity-50 disabled:cursor-not-allowed" />
           </div>
 
           {/* Raridade e Ano */}
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Raridade</label>
-              <select value={carRarity} onChange={(e) => setCarRarity(e.target.value)} disabled={!isOwner} className="w-full bg-gray-950 border border-gray-700 rounded-lg p-3 text-sm text-white outline-none focus:border-yellow-500 transition disabled:opacity-70">
+              <select value={carRarity} onChange={(e) => setCarRarity(e.target.value)} disabled={!isOwner} className="w-full bg-gray-950 border border-gray-700 rounded-lg p-3 text-sm text-white outline-none focus:border-yellow-500 transition disabled:opacity-50 disabled:cursor-not-allowed">
                 <option value="Regular">Regular</option>
                 <option value="Premium">Premium</option>
                 <option value="Treasure Hunt">TH</option>
@@ -215,7 +235,7 @@ export default function MiniatureFormModal({ isOpen, onClose, onSaveComplete, di
             </div>
             <div>
               <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Ano</label>
-              <input type="number" value={carYear} onChange={(e) => setCarYear(e.target.value)} disabled={!isOwner} className="w-full bg-gray-950 border border-gray-700 rounded-lg p-3 text-sm text-white outline-none focus:border-yellow-500 transition disabled:opacity-70" />
+              <input type="number" value={carYear} onChange={(e) => setCarYear(e.target.value)} disabled={!isOwner} className="w-full bg-gray-950 border border-gray-700 rounded-lg p-3 text-sm text-white placeholder-gray-600 focus:border-yellow-500 outline-none transition disabled:opacity-50 disabled:cursor-not-allowed" />
             </div>
           </div>
 
@@ -223,11 +243,11 @@ export default function MiniatureFormModal({ isOpen, onClose, onSaveComplete, di
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Série</label>
-              <input type="text" value={carSeries} onChange={(e) => setCarSeries(e.target.value)} disabled={!isOwner} placeholder="Ex: HW Flames" className="w-full bg-gray-950 border border-gray-700 rounded-lg p-3 text-sm text-white placeholder-gray-500 outline-none focus:border-yellow-500 transition disabled:opacity-70" />
+              <input type="text" value={carSeries} onChange={(e) => setCarSeries(e.target.value)} disabled={!isOwner} placeholder="Ex: HW Flames" className="w-full bg-gray-950 border border-gray-700 rounded-lg p-3 text-sm text-white placeholder-gray-600 focus:border-yellow-500 outline-none transition disabled:opacity-50 disabled:cursor-not-allowed" />
             </div>
             <div>
               <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Código Toy</label>
-              <input type="text" value={carCode} onChange={(e) => setCarCode(e.target.value)} disabled={!isOwner} placeholder="Ex: GHD81" className="w-full bg-gray-950 border border-gray-700 rounded-lg p-3 text-sm text-white placeholder-gray-500 outline-none focus:border-yellow-500 transition disabled:opacity-70" />
+              <input type="text" value={carCode} onChange={(e) => setCarCode(e.target.value)} disabled={!isOwner} placeholder="Ex: GHD81" className="w-full bg-gray-950 border border-gray-700 rounded-lg p-3 text-sm text-white placeholder-gray-600 focus:border-yellow-500 outline-none transition disabled:opacity-50 disabled:cursor-not-allowed" />
             </div>
           </div>
 
@@ -235,18 +255,18 @@ export default function MiniatureFormModal({ isOpen, onClose, onSaveComplete, di
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Cor / Pintura</label>
-              <input type="text" value={carColor} onChange={(e) => setCarColor(e.target.value)} disabled={!isOwner} placeholder="Ex: Vermelho" className="w-full bg-gray-950 border border-gray-700 rounded-lg p-3 text-sm text-white placeholder-gray-500 outline-none focus:border-yellow-500 transition disabled:opacity-70" />
+              <input type="text" value={carColor} onChange={(e) => setCarColor(e.target.value)} disabled={!isOwner} placeholder="Ex: Vermelho" className="w-full bg-gray-950 border border-gray-700 rounded-lg p-3 text-sm text-white placeholder-gray-600 focus:border-yellow-500 outline-none transition disabled:opacity-50 disabled:cursor-not-allowed" />
             </div>
             <div>
               <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Cód. Fabrico</label>
-              <input type="text" value={carFactoryCode} onChange={(e) => setCarFactoryCode(e.target.value)} disabled={!isOwner} placeholder="Ex: N23" className="w-full bg-gray-950 border border-gray-700 rounded-lg p-3 text-sm text-white placeholder-gray-500 outline-none focus:border-yellow-500 transition disabled:opacity-70" />
+              <input type="text" value={carFactoryCode} onChange={(e) => setCarFactoryCode(e.target.value)} disabled={!isOwner} placeholder="Ex: N23" className="w-full bg-gray-950 border border-gray-700 rounded-lg p-3 text-sm text-white placeholder-gray-600 focus:border-yellow-500 outline-none transition disabled:opacity-50 disabled:cursor-not-allowed" />
             </div>
           </div>
 
           {/* Notas */}
           <div>
             <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Observações</label>
-            <textarea value={carNotes} onChange={(e) => setCarNotes(e.target.value)} disabled={!isOwner} placeholder="Nenhuma observação adicionada." className="w-full bg-gray-950 border border-gray-700 rounded-lg p-3 text-sm text-white placeholder-gray-500 h-20 outline-none focus:border-yellow-500 transition resize-none disabled:opacity-70"></textarea>
+            <textarea value={carNotes} onChange={(e) => setCarNotes(e.target.value)} disabled={!isOwner} placeholder="Nenhuma observação adicionada." className="w-full bg-gray-950 border border-gray-700 rounded-lg p-3 text-sm text-white placeholder-gray-600 focus:border-yellow-500 outline-none transition resize-none h-20 disabled:opacity-50 disabled:cursor-not-allowed" />
           </div>
 
           {/* Estado de Troca */}
@@ -271,7 +291,7 @@ export default function MiniatureFormModal({ isOpen, onClose, onSaveComplete, di
             </button>
             
             {isOwner ? (
-              <button type="submit" disabled={uploadingPhoto} className="px-6 py-2.5 bg-yellow-500 text-black font-black text-xs rounded-lg uppercase shadow-lg hover:bg-yellow-400 transition disabled:opacity-50">
+              <button type="submit" disabled={uploadingPhoto} className="px-6 py-2.5 bg-yellow-500 text-black font-black text-xs rounded-lg uppercase shadow-lg hover:bg-yellow-400 transition disabled:opacity-50 disabled:cursor-not-allowed">
                 {uploadingPhoto ? 'Aguarde...' : 'Salvar Ficha'}
               </button>
             ) : carIsForTrade ? (
