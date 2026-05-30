@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from './supabaseClient';
+import SocialFeed from './SocialFeed';
 
 const ICON_TH = 'https://collecthw.com/images/th.png';
 const ICON_STH = 'https://collecthw.com/images/sth.png';
@@ -14,7 +15,7 @@ interface DashboardProps {
   wishlist: any[];
   onAddToWishlist: (carName: string, series: string, toyCode: string) => Promise<void>;
   onRemoveFromWishlist: (wishlistId: string) => Promise<void>;
-  activeTab: 'modules' | 'market' | 'wishlist' | 'matches';
+  activeTab: 'modules' | 'market' | 'wishlist' | 'matches' | 'feed';
   setActiveTab: (tab: any) => void;
 }
 
@@ -313,15 +314,15 @@ export default function Dashboard({
             <form onSubmit={handleWishlistSubmit} className="space-y-3">
               <div>
                 <label className="block text-[10px] font-bold text-sky-300 uppercase mb-1">Modelo / Nome do Carro *</label>
-                <input type="text" value={newCarName} onChange={(e) => setNewCarName(e.target.value)} placeholder="Ex: Nissan Skyline GT-R" className="w-full bg-sky-950 border border-sky-800 rounded-xl p-2.5 text-xs text-white focus:outline-none focus:border-yellow-500" required />
+                <input type="text" value={newCarName} onChange={(e) => setNewCarName(e.target.value)} placeholder="Ex: Nissan Skyline GT-R" className="w-full bg-sky-950 border border-sky-800 rounded-xl p-2.5 text-sm text-white placeholder-sky-700 focus:border-yellow-400 outline-none transition" />
               </div>
               <div>
                 <label className="block text-[10px] font-bold text-sky-300 uppercase mb-1">Série (Opcional)</label>
-                <input type="text" value={newSeries} onChange={(e) => setNewSeries(e.target.value)} placeholder="Ex: Then and Now" className="w-full bg-sky-950 border border-sky-800 rounded-xl p-2.5 text-xs text-white focus:outline-none focus:border-yellow-500" />
+                <input type="text" value={newSeries} onChange={(e) => setNewSeries(e.target.value)} placeholder="Ex: Then and Now" className="w-full bg-sky-950 border border-sky-800 rounded-xl p-2.5 text-sm text-white placeholder-sky-700 focus:border-yellow-400 outline-none transition" />
               </div>
               <div>
                 <label className="block text-[10px] font-bold text-sky-300 uppercase mb-1">Código Toy# / Fabrico (Opcional)</label>
-                <input type="text" value={newToyCode} onChange={(e) => setNewToyCode(e.target.value)} placeholder="Ex: HKG27" className="w-full bg-sky-950 border border-sky-800 rounded-xl p-2.5 text-xs text-white focus:outline-none focus:border-yellow-500" />
+                <input type="text" value={newToyCode} onChange={(e) => setNewToyCode(e.target.value)} placeholder="Ex: HKG27" className="w-full bg-sky-950 border border-sky-800 rounded-xl p-2.5 text-sm text-white placeholder-sky-700 focus:border-yellow-400 outline-none transition" />
               </div>
               <button type="submit" className="w-full py-2.5 bg-yellow-500 text-gray-950 font-black text-xs rounded-xl uppercase tracking-wider hover:bg-yellow-400 transition shadow">Lançar Desejo</button>
             </form>
@@ -380,7 +381,7 @@ export default function Dashboard({
                   <span className="text-[10px] text-sky-400 mt-1 font-medium">Série: {car.series || 'N/A'}</span>
                   {car.toy_code && <span className="text-[9px] text-yellow-500 font-mono">#{car.toy_code}</span>}
                   <span className="text-[10px] text-yellow-500 font-bold mt-2 flex items-center gap-1">👤 {userProfiles[car.user_id] || 'Colecionador'}</span>
-                  <button onClick={() => handleProporTrocaClick(car)} className="mt-auto pt-3 w-full border-t border-sky-900/30 text-xs font-black text-blue-400 hover:text-blue-300 transition uppercase tracking-wider flex items-center justify-center gap-2">💬 Propor Troca</button>
+                  <button onClick={() => handleProporTrocaClick(car)} className="mt-auto pt-3 w-full border-t border-sky-900/30 text-xs font-black text-blue-400 hover:text-blue-300 transition uppercase tracking-wider">📥 Propor Troca</button>
                 </div>
               </div>
             ))}
@@ -399,10 +400,10 @@ export default function Dashboard({
                   {activeMatches.length} Cruzamentos Detetados!
                 </div>
                 <p className="text-xs text-sky-200/80 max-w-md mx-auto leading-relaxed">
-                  O radar detetou <span className="text-yellow-400 font-bold">{activeMatches.length} correspondências</span> entre a tua Wishlist e o Mercado Global! Desbloqueia o acesso para abrir as conversas e fechar os teus negócios.
+                  O radar detetou <span className="text-yellow-400 font-bold">{activeMatches.length} correspondências</span> entre a tua Wishlist e o Mercado Global! Desbloqueia o acesso para abrir conversas.
                 </p>
                 <div className="pt-2">
-                  <button onClick={handleCheckout} className="bg-gradient-to-r from-yellow-400 to-amber-500 text-gray-950 font-black text-xs px-6 py-3 rounded-xl uppercase tracking-wider shadow-lg transition">
+                  <button onClick={handleCheckout} className="bg-gradient-to-r from-yellow-400 to-amber-500 text-gray-950 font-black text-xs px-6 py-3 rounded-xl uppercase tracking-wider shadow-lg hover:shadow-xl transition">
                     Ativar Conta PRO por 2,99€ / Mês
                   </button>
                 </div>
@@ -418,7 +419,7 @@ export default function Dashboard({
                       <h4 className="text-sm font-bold text-white mt-1.5 uppercase tracking-tight">Tu queres: {match.wishName}</h4>
                       <p className="text-xs text-sky-300 font-medium">Disponível com: <span className="text-yellow-400 font-bold">{userProfiles[match.car.user_id] || 'Colecionador'}</span></p>
                     </div>
-                    <button onClick={() => handleProporTrocaClick(match.car)} className="bg-blue-600 hover:bg-blue-500 text-white font-black text-xs px-4 py-2 rounded-lg uppercase tracking-wider transition">Negociar</button>
+                    <button onClick={() => handleProporTrocaClick(match.car)} className="bg-blue-600 hover:bg-blue-500 text-white font-black text-xs px-4 py-2 rounded-lg uppercase tracking-wider transition">Propor</button>
                   </div>
                 ))}
               </div>
@@ -455,7 +456,7 @@ export default function Dashboard({
                     {chatMessages.map((msg) => {
                       const isMe = msg.sender_id === currentUserId;
                       return (
-                        <div key={msg.id} className={`max-w-[70%] p-3 rounded-2xl text-sm text-left ${isMe ? 'bg-blue-600 text-white self-end rounded-br-none' : 'bg-sky-900/50 border border-sky-800 text-gray-200 self-start rounded-bl-none'}`}>
+                        <div key={msg.id} className={`max-w-[70%] p-3 rounded-2xl text-sm text-left ${isMe ? 'bg-blue-600 text-white self-end rounded-br-none' : 'bg-sky-900/50 border border-sky-800 text-sky-100'}`}>
                           <p>{msg.content}</p>
                           <span className="text-[8px] opacity-60 block text-right mt-1 font-mono">{new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                         </div>
@@ -463,7 +464,7 @@ export default function Dashboard({
                     })}
                   </div>
                   <form onSubmit={handleSendReply} className="p-3 bg-gray-950/60 border-t border-sky-900/30 flex gap-2">
-                    <input type="text" value={replyText} onChange={(e) => setReplyText(e.target.value)} placeholder="Escreve uma resposta..." className="flex-1 bg-sky-950 border border-sky-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-sky-500 transition" />
+                    <input type="text" value={replyText} onChange={(e) => setReplyText(e.target.value)} placeholder="Escreve uma resposta..." className="flex-1 bg-sky-950 border border-sky-800 rounded-xl p-2.5 text-sm text-white placeholder-sky-800 focus:border-yellow-400 outline-none transition" />
                     <button type="submit" className="bg-blue-600 text-white px-5 font-black text-xs rounded-xl uppercase tracking-wider">Enviar</button>
                   </form>
                 </>
@@ -478,6 +479,11 @@ export default function Dashboard({
         </div>
       )}
 
+      {/* ABA: FEED SOCIAL */}
+      {activeTab === 'feed' && (
+        <SocialFeed />
+      )}
+
       {/* MODAL MENSAGEM INICIAL */}
       {selectedCarForPropose && (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
@@ -486,7 +492,7 @@ export default function Dashboard({
             <form onSubmit={handleSendInitialMessage} className="space-y-4">
               <div>
                 <label className="block text-[10px] font-bold text-sky-300 uppercase mb-1">Mensagem Inicial</label>
-                <textarea value={initialMessage} onChange={(e) => setInitialMessage(e.target.value)} className="w-full h-24 bg-gray-950 border border-sky-800 rounded-xl p-3 text-xs text-white focus:outline-none resize-none" required></textarea>
+                <textarea value={initialMessage} onChange={(e) => setInitialMessage(e.target.value)} className="w-full h-24 bg-gray-950 border border-sky-800 rounded-xl p-3 text-xs text-white focus:border-yellow-400 outline-none transition resize-none" />
               </div>
               <div className="flex justify-end gap-3 pt-2">
                 <button type="button" onClick={() => setSelectedCarForPropose(null)} className="px-3 py-1.5 text-xs font-bold text-sky-400">Cancelar</button>
@@ -504,8 +510,8 @@ export default function Dashboard({
             <button onClick={() => setShowPaywall(false)} className="absolute top-4 right-4 text-sky-400 hover:text-white">✕</button>
             <div className="w-16 h-16 bg-yellow-500/10 border border-yellow-500/30 rounded-full flex items-center justify-center text-3xl mx-auto mb-4">🔒</div>
             <h3 className="text-2xl font-black text-white tracking-tight uppercase">Recurso PRO</h3>
-            <p className="text-sm text-sky-200/70 mt-3 mb-6 leading-relaxed">Para iniciares conversas, veres o cruzamento de dados e veres quem tem o carro que procuras, desbloqueia o WheelTrack PRO.</p>
-            <button onClick={handleCheckout} className="w-full py-3.5 bg-gradient-to-r from-yellow-400 to-amber-500 text-gray-950 font-black text-sm rounded-xl uppercase tracking-wider shadow-lg transition">
+            <p className="text-sm text-sky-200/70 mt-3 mb-6 leading-relaxed">Para iniciares conversas, veres o cruzamento de dados e veres quem tem o carro que procuras, desbloqueia o WheelTrack Premium.</p>
+            <button onClick={handleCheckout} className="w-full py-3.5 bg-gradient-to-r from-yellow-400 to-amber-500 text-gray-950 font-black text-sm rounded-xl uppercase tracking-wider shadow-lg hover:shadow-xl transition">
               Desbloquear por 2,99€ / Mês
             </button>
           </div>
