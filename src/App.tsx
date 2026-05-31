@@ -224,7 +224,7 @@ function GaragemContainer({ session }: { session: any }) {
               onClick={() => { setSelectedDisplay(null); setActiveTab('market'); }}
               className={`px-4 py-2.5 rounded-lg font-black uppercase tracking-wider transition-all grow md:grow-0 ${activeTab === 'market' ? 'bg-yellow-500 text-gray-950 font-black' : 'text-sky-300 hover:text-white'}`}
             >
-              🌍 Mercado & Radar 🛞
+              🌍 Mercado & Radar 🔥
             </button>
             <button
               onClick={() => { setSelectedDisplay(null); setActiveTab('wishlist'); }}
@@ -243,7 +243,7 @@ function GaragemContainer({ session }: { session: any }) {
               onClick={() => { setSelectedDisplay(null); setActiveTab('feed'); }}
               className={`px-4 py-2.5 rounded-lg font-black uppercase tracking-wider transition-all grow md:grow-0 ${activeTab === 'feed' ? 'bg-yellow-500 text-gray-950 font-black' : 'text-sky-300 hover:text-white'}`}
             >
-              👥 Feed da Rede
+              👥 Feed
             </button>
           </div>
         )}

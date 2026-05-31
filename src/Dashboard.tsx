@@ -484,17 +484,18 @@ export default function Dashboard({
                     {/* FILA DE ACÇÕES: SISTEMA REAL DE RODAS DE SUPABASE */}
                     <div className="pt-3 border-t border-sky-500/10 mt-auto flex justify-between items-center gap-2">
                       
+                      {/* INTERAÇÃO DO FLAME (LIKE ESTILO FLAME) */}
                       <button 
                         onClick={() => handleToggleWheelReaction(car.id, reactionInfo.userReacted)}
                         className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
                           reactionInfo.userReacted 
-                            ? 'bg-yellow-400/10 border border-yellow-400/30 text-yellow-400' 
+                            ? 'bg-orange-500/10 border border-orange-500/30 text-orange-500 font-black' 
                             : 'bg-sky-400/5 border border-sky-500/10 text-sky-300 hover:border-sky-400/40 hover:text-white'
                         }`}
-                        title="Girar Roda"
+                        title="Dar um Flame"
                       >
-                        <span className={`text-sm transition-transform duration-500 ${reactionInfo.userReacted ? 'rotate-180 scale-110' : 'group-hover:rotate-45'}`}>
-                          🛞
+                        <span className={`text-sm transition-transform duration-300 ${reactionInfo.userReacted ? 'scale-125' : 'group-hover:scale-110'}`}>
+                          🔥
                         </span>
                         <span className="font-mono text-[11px]">{reactionInfo.count}</span>
                       </button>
