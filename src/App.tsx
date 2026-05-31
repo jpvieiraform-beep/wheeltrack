@@ -238,6 +238,13 @@ function GaragemContainer({ session }: { session: any }) {
             >
               🔄 Central Matches
             </button>
+            {/* NOVO BOTÃO DO FEED ESTILO FACEBOOK */}
+            <button
+              onClick={() => { setSelectedDisplay(null); setActiveTab('feed'); }}
+              className={`px-4 py-2.5 rounded-lg font-black uppercase tracking-wider transition-all grow md:grow-0 ${activeTab === 'feed' ? 'bg-yellow-500 text-gray-950 font-black' : 'text-sky-300 hover:text-white'}`}
+            >
+              👥 Feed da Rede
+            </button>
           </div>
         )}
       </div>
