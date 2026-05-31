@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from './supabaseClient';
 import SocialFeed from './SocialFeed';
+import VirtualDisplay from './VirtualDisplay';
 
 const ICON_TH = 'https://collecthw.com/images/th.png';
 const ICON_STH = 'https://collecthw.com/images/sth.png';
@@ -17,11 +18,14 @@ interface DashboardProps {
   onRemoveFromWishlist: (wishlistId: string) => Promise<void>;
   activeTab: 'modules' | 'market' | 'wishlist' | 'matches' | 'feed';
   setActiveTab: (tab: any) => void;
+  selectedDisplay: any; 
+  setSelectedDisplay: (display: any) => void; 
 }
 
+// CORREÇÃO: Adicionadas as propriedades selectedDisplay e setSelectedDisplay na linha abaixo
 export default function Dashboard({
   allMiniatures, displaysList, globalMarket, subscriptionStatus, onSelectDisplay, onDeleteDisplay,
-  wishlist, onAddToWishlist, onRemoveFromWishlist, activeTab, setActiveTab
+  wishlist, onAddToWishlist, onRemoveFromWishlist, activeTab, setActiveTab, selectedDisplay, setSelectedDisplay
 }: DashboardProps) {
   const [showPaywall, setShowPaywall] = useState(false);
   
@@ -314,60 +318,86 @@ export default function Dashboard({
   return (
     <div className="max-w-6xl mx-auto p-4 space-y-6">
       
-      {/* ABA: EXPOSITORES */}
+      {/* ABA: EXPOSITORES INTEGRADA COM VIRTUAL DISPLAY (SEM CLIQUE EXTRA) */}
       {activeTab === 'modules' && (
-        <>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <div className="bg-sky-950/40 border border-sky-900/40 p-4 rounded-xl text-center shadow">
-              <span className="text-xs text-sky-300 block mb-1">Total Modelos</span>
-              <span className="text-2xl font-black">{allMiniatures.length}</span>
+        selectedDisplay ? (
+          <div className="space-y-4 animate-fade-in text-left pt-2">
+            <div className="flex justify-between items-center border-b border-sky-900/40 pb-3">
+              <div>
+                <span className="text-[10px] font-black tracking-widest text-sky-400 uppercase block">A Inspecionar Módulo</span>
+                <h3 className="text-lg font-black text-white uppercase tracking-tight">
+                  {cleanDisplayName(selectedDisplay.name)}
+                </h3>
+              </div>
+              <button 
+                onClick={() => setSelectedDisplay(null)}
+                className="px-4 py-2 bg-sky-950 border border-sky-800 hover:border-sky-500 text-[11px] font-black rounded-lg transition text-sky-200 uppercase tracking-wider shadow-md"
+              >
+                ⬅️ Voltar aos Módulos
+              </button>
             </div>
-            <div className="bg-sky-950/40 border border-sky-900/40 p-4 rounded-xl text-center border-l-4 border-l-amber-500 flex flex-col items-center justify-center shadow">
-              <img src={ICON_STH} alt="STH" className="w-5 h-5 object-contain mb-1" />
-              <span className="text-xl font-black text-amber-400">{allMiniatures.filter(m => m.rarity_type === 'Super Treasure Hunt').length}</span>
-            </div>
-            <div className="bg-sky-950/40 border border-sky-900/40 p-4 rounded-xl text-center border-l-4 border-l-slate-400 flex flex-col items-center justify-center shadow">
-              <img src={ICON_TH} alt="TH" className="w-5 h-5 object-contain mb-1" />
-              <span className="text-xl font-black text-slate-300">{allMiniatures.filter(m => m.rarity_type === 'Treasure Hunt').length}</span>
-            </div>
-            <div className="bg-sky-950/40 border border-sky-900/40 p-4 rounded-xl text-center border-l-4 border-l-blue-500 shadow">
-              <span className="text-xs text-sky-300 block mb-1">Para Troca</span>
-              <span className="text-2xl font-black text-blue-400">{allMiniatures.filter(m => m.is_for_trade).length}</span>
+            
+            {/* Renderização direta do teu componente virtual sem ecrãs fantasmas */}
+            <div className="bg-slate-950/40 p-1 rounded-2xl border border-sky-900/30 backdrop-blur-sm">
+              <VirtualDisplay targetUserId={currentUserId || ''} isViewingPublic={false} />
             </div>
           </div>
-          
-          <div className="space-y-6 pt-2">
-            {Object.keys(groupedDisplaysByRoom).map((roomName) => {
-              const isBox = roomName.toUpperCase() === 'CAIXA';
-              return (
-                <div key={roomName} className={`space-y-3 p-4 rounded-2xl border ${isBox ? 'bg-amber-950/10 border-amber-900/30' : 'bg-sky-900/20 border-sky-900/30'}`}>
-                  <h3 className={`text-xs font-black tracking-wider uppercase border-b pb-1 ${isBox ? 'text-amber-500 border-amber-900/50' : 'text-sky-300 border-sky-900/40'}`}>
-                    {isBox ? '📦 Caixas de Arrumação / Stock' : `📍 ${roomName}`}
-                  </h3>
-                  <div className="grid sm:grid-cols-3 gap-4">
-                    {groupedDisplaysByRoom[roomName].map((disp: any) => (
-                      <div 
-                        key={disp.id} 
-                        onClick={() => onSelectDisplay(disp)} 
-                        className={`p-5 rounded-xl cursor-pointer transition relative group shadow backdrop-blur-sm ${
-                          isBox 
-                            ? 'bg-amber-950/20 border-dashed border-2 border-amber-800/50 hover:border-amber-500' 
-                            : 'bg-sky-950/40 border border-sky-900/40 hover:border-yellow-500'
-                        }`}
-                      >
-                        <button onClick={(e) => { e.stopPropagation(); onDeleteDisplay(e, disp.id, disp.name); }} className="absolute top-3 right-3 text-sky-600 hover:text-red-500 opacity-0 group-hover:opacity-100 transition">🗑️</button>
-                        <h4 className="text-base font-bold text-gray-200">{isBox ? '📦 ' : '🔲 '}{cleanDisplayName(disp.name)}</h4>
-                        <span className={`text-[10px] px-2 py-0.5 rounded font-mono mt-2 inline-block ${isBox ? 'bg-amber-900/40 text-amber-400' : 'bg-gray-950 text-sky-400'}`}>
-                          {isBox ? 'Capacidade Livre' : `${disp.rows_count}×${disp.columns_count} Vagas`}
-                        </span>
-                      </div>
-                    ))}
+        ) : (
+          <>
+            {/* RECONTAGEM E CONTADORES GERAIS */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <div className="bg-sky-950/40 border border-sky-900/40 p-4 rounded-xl text-center shadow">
+                <span className="text-xs text-sky-300 block mb-1">Total Modelos</span>
+                <span className="text-2xl font-black">{allMiniatures.length}</span>
+              </div>
+              <div className="bg-sky-950/40 border border-sky-900/40 p-4 rounded-xl text-center border-l-4 border-l-amber-500 flex flex-col items-center justify-center shadow">
+                <img src={ICON_STH} alt="STH" className="w-5 h-5 object-contain mb-1" />
+                <span className="text-xl font-black text-amber-400">{allMiniatures.filter(m => m.rarity_type === 'Super Treasure Hunt').length}</span>
+              </div>
+              <div className="bg-sky-950/40 border border-sky-900/40 p-4 rounded-xl text-center border-l-4 border-l-slate-400 flex flex-col items-center justify-center shadow">
+                <img src={ICON_TH} alt="TH" className="w-5 h-5 object-contain mb-1" />
+                <span className="text-xl font-black text-slate-300">{allMiniatures.filter(m => m.rarity_type === 'Treasure Hunt').length}</span>
+              </div>
+              <div className="bg-sky-950/40 border border-sky-900/40 p-4 rounded-xl text-center border-l-4 border-l-blue-500 shadow">
+                <span className="text-xs text-sky-300 block mb-1">Para Troca</span>
+                <span className="text-2xl font-black text-blue-400">{allMiniatures.filter(m => m.is_for_trade).length}</span>
+              </div>
+            </div>
+            
+            {/* GRELHA DE SALAS E CAIXAS */}
+            <div className="space-y-6 pt-2">
+              {Object.keys(groupedDisplaysByRoom).map((roomName) => {
+                const isBox = roomName.toUpperCase() === 'CAIXA';
+                return (
+                  <div key={roomName} className={`space-y-3 p-4 rounded-2xl border ${isBox ? 'bg-amber-950/10 border-amber-900/30' : 'bg-sky-900/20 border-sky-900/30'}`}>
+                    <h3 className={`text-xs font-black tracking-wider uppercase border-b pb-1 ${isBox ? 'text-amber-500 border-amber-900/50' : 'text-sky-300 border-sky-900/40'}`}>
+                      {isBox ? '📦 Caixas de Arrumação / Stock' : `📍 ${roomName}`}
+                    </h3>
+                    <div className="grid sm:grid-cols-3 gap-4">
+                      {groupedDisplaysByRoom[roomName].map((disp: any) => (
+                        <div 
+                          key={disp.id} 
+                          onClick={() => onSelectDisplay(disp)} 
+                          className={`p-5 rounded-xl cursor-pointer transition relative group shadow backdrop-blur-sm ${
+                            isBox 
+                              ? 'bg-amber-950/20 border-dashed border-2 border-amber-800/50 hover:border-amber-500' 
+                              : 'bg-sky-950/40 border border-sky-900/40 hover:border-yellow-500'
+                          }`}
+                        >
+                          <button onClick={(e) => { e.stopPropagation(); onDeleteDisplay(e, disp.id, disp.name); }} className="absolute top-3 right-3 text-sky-600 hover:text-red-500 opacity-0 group-hover:opacity-100 transition">🗑️</button>
+                          <h4 className="text-base font-bold text-gray-200">{isBox ? '📦 ' : '🔲 '}{cleanDisplayName(disp.name)}</h4>
+                          <span className={`text-[10px] px-2 py-0.5 rounded font-mono mt-2 inline-block ${isBox ? 'bg-amber-900/40 text-amber-400' : 'bg-gray-950 text-sky-400'}`}>
+                            {isBox ? 'Capacidade Livre' : `${disp.rows_count}×${disp.columns_count} Vagas`}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                </div>
-              );
-            })}
-          </div>
-        </>
+                );
+              })}
+            </div>
+          </>
+        )
       )}
 
       {/* ABA: WISHLIST */}
@@ -428,7 +458,7 @@ export default function Dashboard({
                 Atividade da Comunidade & Classificados
               </h3>
               <p className="text-xs text-sky-200/70 font-normal mt-1 max-w-xl">
-                Acompanha os modelos que os colecionadores adicionam às suas garagens e propõe trocas nos classificados ativos.
+                Acompanha os models que os colecionadores adicionam às suas garagens e propõe trocas nos classificados ativos.
               </p>
             </div>
             <div className="bg-sky-400/10 border border-sky-400/30 px-4 py-2 rounded-xl text-center shrink-0">
@@ -490,7 +520,7 @@ export default function Dashboard({
                         className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
                           reactionInfo.userReacted 
                             ? 'bg-orange-500/10 border border-orange-500/30 text-orange-500 font-black' 
-                            : 'bg-sky-400/5 border border-sky-500/10 text-sky-300 hover:border-sky-400/40 hover:text-white'
+                            : 'bg-sky-400/5 border border-sky-500/10 text-sky-300 hover:border-orange-400/40 hover:text-white'
                         }`}
                         title="Dar um Flame"
                       >
@@ -546,7 +576,7 @@ export default function Dashboard({
                       <h4 className="text-sm font-bold text-white mt-1.5 uppercase tracking-tight">Tu queres: {match.wishName}</h4>
                       <p className="text-xs text-sky-300 font-medium">Disponível com: <span className="text-yellow-400 font-bold">{userProfiles[match.car.user_id] || 'Colecionador'}</span></p>
                     </div>
-                    <button onClick={() => handleProporTrocaClick(match.car)} className="bg-blue-600 hover:bg-blue-500 text-white font-black text-xs px-4 py-2 rounded-lg uppercase tracking-wider transition">Negociar</button>
+                    <div className="bg-blue-600 hover:bg-blue-500 text-white font-black text-xs px-4 py-2 rounded-lg uppercase tracking-wider transition cursor-pointer" onClick={() => handleProporTrocaClick(match.car)}>Negociar</div>
                   </div>
                 ))}
               </div>

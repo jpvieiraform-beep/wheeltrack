@@ -249,28 +249,26 @@ function GaragemContainer({ session }: { session: any }) {
         )}
       </div>
 
-      {/* ALTERNADOR DE CONTEÚDO */}
-      {selectedDisplay && targetUserId ? (
-        <VirtualDisplay targetUserId={targetUserId} isViewingPublic={!!username} />
-      ) : (
-        <Dashboard 
-          allMiniatures={allMiniatures}
-          displaysList={displaysList}
-          globalMarket={globalMarket}
-          subscriptionStatus={subStatus}
-          onSelectDisplay={(display) => setSelectedDisplay(display)}
-          onDeleteDisplay={async (id) => {
-            await supabase.from('displays').delete().eq('id', id);
-            const { data: disps } = await supabase.from('displays').select('*').eq('user_id', targetUserId);
-            setDisplaysList(disps || []);
-          }}
-          wishlist={wishlist}
-          onAddToWishlist={handleAddToWishlist}
-          onRemoveFromWishlist={handleRemoveFromWishlist}
-          activeTab={activeTab}
-          setActiveTab={setActiveTab}
-        />
-      )}
+      {/* ALTERNADOR DE CONTEÚDO CORRIGIDO - JÁ NÃO ESCONDE OS MENUS */}
+      <Dashboard 
+        allMiniatures={allMiniatures}
+        displaysList={displaysList}
+        globalMarket={globalMarket}
+        subscriptionStatus={subStatus}
+        onSelectDisplay={(display) => setSelectedDisplay(display)}
+        onDeleteDisplay={async (id) => {
+          await supabase.from('displays').delete().eq('id', id);
+          const { data: disps } = await supabase.from('displays').select('*').eq('user_id', targetUserId);
+          setDisplaysList(disps || []);
+        }}
+        wishlist={wishlist}
+        onAddToWishlist={handleAddToWishlist}
+        onRemoveFromWishlist={handleRemoveFromWishlist}
+        activeTab={activeTab}
+        setActiveTab={setActiveTab}
+        selectedDisplay={selectedDisplay}
+        setSelectedDisplay={setSelectedDisplay}
+      />
 
       {/* Identificador fixo */}
       {session?.user && (
