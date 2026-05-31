@@ -189,22 +189,20 @@ export default function SocialFeed() {
 
               </div>
 
-              {/* BOTÕES DE REAÇÃO ESTILO TIMELINE */}
-              <div className="pt-2 border-t border-sky-500/10 flex items-center justify-between gap-4">
-                
-                {/* BOTÃO DA RODA (LIKE) */}
-                <button
+              {/* BOTÃO DE REAÇÃO ESTILO TIMELINE: FLAME 🔥 */}
+              <button
                   onClick={() => handleToggleWheel(car.id, reacInfo.userReacted)}
                   className={`flex items-center justify-center gap-2 flex-1 py-2 rounded-xl text-xs font-bold transition-all ${
                     reacInfo.userReacted
-                      ? 'bg-yellow-400/10 border border-yellow-400/20 text-yellow-400 font-black'
+                      ? 'bg-orange-500/10 border border-orange-500/30 text-orange-500 font-black'
                       : 'bg-sky-400/5 border border-sky-500/5 text-sky-300 hover:bg-sky-400/10 hover:text-white'
                   }`}
+                  title="Dar um Flame"
                 >
-                  <span className={`text-base transition-transform duration-500 ${reacInfo.userReacted ? 'rotate-180 scale-110' : ''}`}>
-                    🛞
+                  <span className={`text-base transition-transform duration-300 ${reacInfo.userReacted ? 'scale-125 animate-pulse' : 'group-hover:scale-110'}`}>
+                    🔥
                   </span>
-                  <span>Girar Roda ({reacInfo.count})</span>
+                  <span>{reacInfo.userReacted ? 'Com Flame' : 'Dar um Flame'} ({reacInfo.count})</span>
                 </button>
 
                 {/* BOTÃO DE INTERESSE / PROPÔR NEGÓCIO */}
@@ -222,8 +220,6 @@ export default function SocialFeed() {
                 )}
 
               </div>
-
-            </div>
           );
         })
       )}
